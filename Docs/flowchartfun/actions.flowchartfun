@@ -1,0 +1,52 @@
+Actions .action {
+    .action}
+  
+Fold .action {
+  Retract banner .false
+    Retract arms .false
+      Grabber catch .true
+        Retract suction .false
+          Grabber at stage one .false
+            Suction up .false
+              
+}
+
+Approach .action {
+  Deploy arms .true
+    Enable magnets .true
+      Release grabber .false
+        Deploy suction .true
+          Grabber stage 1 .true
+}
+
+Release banner .action {
+  Release banner .true
+}
+
+Extract one stage .action {
+  Grabber catch .true
+    Succion application height .true
+      w: Retract arms .false
+        w: enable pump .true
+          w: Succion up .false
+            Grabber release .false
+}
+
+Release one stage .action {
+    w: Disable magnets .true
+      w: Disable pumps .false
+}
+
+Release second stage .action {
+  Succion up .true
+    Grabber stage 2 .false
+      w: Disable magnets .true
+        w: Disable pumps .false
+}
+
+Transport .action {
+  Deploy arms .true
+    Enable magnets .true
+      Grabber catch .true
+        Succion application height .true
+}

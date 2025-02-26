@@ -1,0 +1,21 @@
+Game Start .auto {
+  Release banner .action
+    Approach .action
+      Go to stack \(left/right depends of side) .movement
+        Transport .action
+          Push to front construction area .movement
+            Two stage .auto-call}
+
+Two Stage .auto {
+  Extract one stage .action
+    go backward .movement
+      Go second stage .action
+        Go forward .movement
+          Release .action}
+
+Third stage .auto {
+  Catch 2 stages .action
+    Go second stage .action
+      Go forward .movement
+        Release .action
+}

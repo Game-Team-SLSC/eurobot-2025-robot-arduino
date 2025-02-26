@@ -1,0 +1,66 @@
+$color: #000000;
+$red: #e63946;
+$orange: #f4a261;
+$yellow: #f1fa3b;
+$green: #2a9d8f;
+$blue: #606ef6;
+$purple: #6d4a7c;
+$grey: #f2eded;
+
+/** Start - uncomment to use
+:childless[in_degree < 1][out_degree > 0] {
+  border-width: 0;
+  shape: roundrectangle;
+  background-color: $green;
+  color: white;
+}
+*/
+
+/** Terminal - uncomment to use
+:childless[out_degree < 1][in_degree > 0] {
+  border-width: 0;
+  shape: roundrectangle;
+  background-color: $red;
+  color: white;
+}
+*/
+
+/** Branching - uncomment to use
+:childless[in_degree > 0][in_degree < 2][out_degree > 1] {
+  shape: diamond;
+  background-color: $blue;
+  color: white;
+  height: $width;
+  border-width: 0;
+  text-margin-y: 2;
+}
+*/
+
+/** Merging **/
+:childless[in_degree > 1][out_degree > 0][out_degree < 2] {
+}
+
+:childless.movement {
+  background-color: $green;
+  color: white;
+}
+
+:childless.action {
+  background-color: $blue;
+  color: white;
+}
+
+:child.false {
+  background-color: $red;
+  color: white;
+}
+
+:child.true {
+  background-color: $green;
+  color: white;
+}
+
+:childless.auto-call {
+  background-color: $orange;
+  color: white;
+}

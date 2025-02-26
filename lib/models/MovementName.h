@@ -1,0 +1,14 @@
+#pragma once
+
+enum MovementName {
+    PUMP_ENABLE,
+    MAGNET_ATTACH,
+    ARM_DEPLOY,
+    GRABBER_CATCH,
+    SUCTION_DEPLOY,
+    GRABBER_BLOCK_UP,
+    SUCTION_BLOCK_APPLY,
+    BANNER_RELEASE,
+
+    _MOVCOUNT
+};
