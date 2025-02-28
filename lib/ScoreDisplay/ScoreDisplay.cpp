@@ -10,11 +10,13 @@ void ScoreDisplay::setup() {
 
 void ScoreDisplay::update() {
     if (GlobalState::score->hasChanged()) {
+        info("Update score display : %d", GlobalState::score->get());
         display.showNumberDec(GlobalState::score->get());
     }
 
-    if (!GlobalState::remoteConnected->get()) {
+    if (GlobalState::remoteConnected->hasChanged() && !GlobalState::remoteConnected->get()) {
         isOn = false;
+        info("Blinking score display");
         Timing::every(
             BLINK_INTERVAL,
             +[](void* _) -> bool{

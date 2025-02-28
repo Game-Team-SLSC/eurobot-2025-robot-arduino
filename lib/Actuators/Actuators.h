@@ -38,11 +38,11 @@ class Actuators {
     static void catchBlock(bool _catch);
     static void deploySuction(bool deploy);
     static void moveGrabber(bool up);
-    static void moveSuction(bool up);
+    static void moveSuction(bool onApplication);
     static void releaseBanner(bool up);
 
     static bool isGrabberBlockMoved(bool up);
-    static bool isSuctionBlockMoved(bool up);
+    static bool isSuctionBlockMoved(bool onApplication);
 
     static void setServoAngle(uint8_t num, byte angle);
 };

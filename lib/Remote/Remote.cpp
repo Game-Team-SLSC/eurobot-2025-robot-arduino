@@ -1,14 +1,8 @@
 #include <Remote.h>
 
-Remote::Remote():
-radio(RF_CE, RF_CS),
-timeoutTimer(nullptr)
-{}
 
-Remote& Remote::getInstance() {
-    static Remote instance;
-    return instance;
-}
+RF24 Remote::radio(RF_CE, RF_CS);
+BaseTimer* Remote::timeoutTimer(nullptr);
 
 // yields
 void Remote::setup() {
@@ -39,8 +33,9 @@ bool Remote::fetch(RemoteData& dataBuffer) {
                 Remote* self = static_cast<Remote*>(selfPtr);
                 self->timeoutTimer = nullptr;
                 GlobalState::remoteConnected->set(false);
-            }, this);
-        }
+            GlobalState::remoteConnected->set(false);
+        }, nullptr);
+    }
 
         return false;
     };

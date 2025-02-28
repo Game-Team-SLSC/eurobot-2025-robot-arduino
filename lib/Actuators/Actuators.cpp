@@ -61,7 +61,7 @@ void Actuators::setup() {
     movements[ARM_DEPLOY] = new TimedMovement(deployArm, 1000);
     movements[ARM_DEPLOY]->addDep(new MovementDependency{
         MovementCall{movements[MAGNET_ATTACH], true},
-        true
+        false
     });
 
     
@@ -85,8 +85,6 @@ void Actuators::setup() {
 
     static MovementCall foldedMovements[] = {
         // prevent from breaking magnet
-        {movements[ARM_DEPLOY], true},
-        {movements[MAGNET_ATTACH], true},
         {movements[ARM_DEPLOY], false},
         
         // put stage 1
@@ -224,13 +222,14 @@ void Actuators::setup() {
 }
 
 void Actuators::update()  {
-    Action action = *actions[GlobalState::action->get()];
+    Action* action = actions[GlobalState::action->get()];
     if (GlobalState::action->hasChanged()) {
-        action.execute();
+        info("Execute action id %s", String(GlobalState::action->get()).c_str());
+        action->execute();
         return;
     }
 
-    action.update();
+    action->update();
 }
 
 // @param angle The desired angle in degrees
@@ -239,47 +238,57 @@ void Actuators::setServoAngle(byte num, byte angle) {
 }
 
 void Actuators::enablePump(bool enable) {
+    printf("Movement: enablePump - %s", enable ? "ON" : "OFF");
     digitalWrite(PUMP_ENABLE, enable);
 }
 
 void Actuators::attachMagnet(bool attach) {
+    printf("Movement: attachMagnet - %s", attach ? "ATTACH" : "RELEASE");
     setServoAngle(GRB_MAGNET_L_PIN, attach ? GRB_MAGNET_ATTACH_ANGLE_L : GRB_MAGNET_RELEASE_ANGLE_L);
     setServoAngle(GRB_MAGNET_R_PIN, attach ? GRB_MAGNET_ATTACH_ANGLE_R : GRB_MAGNET_RELEASE_ANGLE_R);
 }
 
 void Actuators::deployArm(bool deploy) {
+    printf("Movement: deployArm - %s", deploy ? "DEPLOY" : "RETRACT");
     setServoAngle(GRB_ARM_L_PIN, deploy ? GRB_ARM_DEP_ANGLE_L : GRB_ARM_RET_ANGLE_L);
     setServoAngle(GRB_ARM_R_PIN, deploy ? GRB_ARM_DEP_ANGLE_R : GRB_ARM_RET_ANGLE_R);
 }
 
 void Actuators::catchBlock(bool _catch) {
+    printf("Movement: catchBlock - %s", _catch ? "CATCH" : "RELEASE");
     setServoAngle(GRB_L_PIN, _catch ? GRB_CATCH_ANGLE_L : GRB_RELEASE_ANGLE_L);
     setServoAngle(GRB_R_PIN, _catch ? GRB_CATCH_ANGLE_R : GRB_RELEASE_ANGLE_R);
 }
 
 void Actuators::deploySuction(bool deploy) {
+    printf("Movement: deploySuction - %s", deploy ? "DEPLOY" : "RETRACT");
     setServoAngle(SC_L_PIN, deploy ? SC_DEP_ANGLE_L : SC_RET_ANGLE_L);
     setServoAngle(SC_R_PIN, deploy ? SC_DEP_ANGLE_R : SC_RET_ANGLE_R);
 }
 
 void Actuators::moveGrabber(bool up) {
+    printf("Movement: moveGrabber - %s", up ? "UP" : "DOWN");
     // TODO
 }
 
-void Actuators::moveSuction(bool up) {
+void Actuators::moveSuction(bool onApplication) {
+    printf("Movement: moveSuction - %s", onApplication ? "ON APPLICATION" : "OFF APPLICATION");
     // TODO
 }
 
 void Actuators::releaseBanner(bool release) {
+    printf("Movement: releaseBanner - %s", release ? "RELEASE" : "HOLD");
     setServoAngle(BANNER_PIN, release ? BANNER_DEP_ANGLE : BANNER_RET_ANGLE);
 }
 
 bool Actuators::isGrabberBlockMoved(bool up) {
+    printf("Movement check: isGrabberBlockMoved - %s", up ? "UP" : "DOWN");
     // TODO
     return true;
 }
 
-bool Actuators::isSuctionBlockMoved(bool up) {
+bool Actuators::isSuctionBlockMoved(bool onApplication) {
+    printf("Movement check: isSuctionBlockMoved - %s", onApplication ? "ON APPLICATION" : "OFF APPLICATION");
     // TODO
     return true;
 }

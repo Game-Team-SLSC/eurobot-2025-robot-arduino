@@ -3,8 +3,8 @@
 #include <Arduino.h>
 
 struct JoystickData {
-    byte x; // 0 to 255
-    byte y; // 0 to 255
+    byte x; // - 128 to 127
+    byte y; // - 128 to 127
     bool sw; // true if pressed
 
     bool operator==(const JoystickData &other) {

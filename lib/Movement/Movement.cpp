@@ -1,7 +1,6 @@
 #include <Movement.h>
 
 Movement::Movement(MovementCallback callback) :
-dependencies(nullptr),
 dependenciesCount(0),
 status(createState<MovementStatus>(MovementStatus::IDLE)),
 target(createState<bool>(true)),
@@ -17,13 +16,23 @@ MovementStatus Movement::getStatus() const {
 };
 
 void Movement::exec(bool active) {
+    warn("here");
+    delay(1000);
+    
     target->set(active);
+    
+    warn("here");
+    delay(1000);
 
     if (!target->hasChanged() && status->get() != MovementStatus::IDLE) return;
+    
+    warn("here");
+    delay(1000);
 
     status->set(MovementStatus::UPDATING_DEPS);
-
-    update();
+    
+    warn("here");
+    delay(1000);
 };
 
 void Movement::checkAndExecuteDeps() {
@@ -34,11 +43,16 @@ void Movement::checkAndExecuteDeps() {
 
         bool currentTarget = target->get();
 
+        warn("%s", dep.bindedTarget ? "true" : "false");
+        warn("%s", currentTarget ? "true" : "false");
+
         if (dep.bindedTarget != currentTarget) continue;
 
         dep.moveCall.movement->exec(dep.moveCall.desiredState);
         
         if (dep.moveCall.movement->getStatus() == MovementStatus::SET) continue;
+
+        warn("herree agains");
 
         dep.moveCall.movement->update();
 

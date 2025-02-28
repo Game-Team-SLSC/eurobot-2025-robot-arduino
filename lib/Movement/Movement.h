@@ -40,17 +40,19 @@ class Movement {
     */
     bool getTarget() const;
 
-    /*
-    @brief Check and executes dependencies
-    @returns false if movement is still updating dependencies, true otherwise
-    */
-    void checkAndExecuteDeps();
     
     protected :
     // vars 
-    MovementDependency* dependencies;
+    MovementDependency dependencies[MAX_DEP];
     byte dependenciesCount;
     DynamicState<MovementStatus>* status;
     DynamicState<bool>* target;
     MovementCallback callback;
+    
+    // functions
+    /*
+    @brief Check and executes dependencies
+    @returns false if movement is still updating dependencies, true otherwise
+    */
+   void checkAndExecuteDeps();
 };
