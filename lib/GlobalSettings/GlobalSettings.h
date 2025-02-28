@@ -7,13 +7,14 @@
 
 // SERIAL OUTPUT
 
-#define ERROR_STATE true;
-#define WARN_STATE true;
-#define INFO_STATE true;
+#define LOG_STATE
+#define ERROR_STATE
+#define WARN_STATE
+#define INFO_STATE
 
-#define INFO_TAG "[INFO]"
-#define WARN_TAG "[WARN]"
-#define ERROR_TAG "[ERROR]"
+#define INFO_TAG "[INFO] - "
+#define WARN_TAG "[WARN] - "
+#define ERROR_TAG "[ERROR] - "
 
 // RF24
 

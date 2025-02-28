@@ -1,6 +1,6 @@
 #include <GlobalState.h>
 
-DynamicState<ActionName>* GlobalState::action = createState(FOLDED);
+DynamicState<ActionName>* GlobalState::action = createState(ActionName::FOLD);
 DynamicState<byte>* GlobalState::score = createState(byte(DEFAULT_SCORE));
 DynamicState<Travel>* GlobalState::travel = createState(Travel{0, 0, 0});
 DynamicState<float>* GlobalState::speedFactor = createState(1.f);
