@@ -1,48 +1,50 @@
 #pragma once
 
-#include <Action.h>
-#include <Movement.h>
-#include <TimedMovement.h>
-#include <TriggeredMovement.h>
-#include <Arduino.h>
 #include <TMCStepper.h>
 #include <AccelStepper.h>
 #include <Adafruit_PWMServoDriver.h>
-#include <MovementName.h>
+
+#include "classes/Movement.h"
+#include "classes/Actuator.h"
+#include "classes/MovementDependency.h"
+#include "classes/Action.h"
 #include <ActionName.h>
+#include "enums/MovementName.h"
+
+#define STEP_BUFFER_SIZE 30
 
 class Actuators {
     public:
-
+    
     static void setup();
     static void update();
-    
+
     private:
+
+    static void setupHardware();
+    static void setupMovements();
+    static void setupActuators();
+    static void setupActions();
+
+    static Actuator* getActuatorFromMovement(MovementName movement);
     
-    static Movement* movements[_MOVCOUNT];
-    static Action* actions[_ACTCOUNT];
+    static void startAction();
+    static void updateAction();
+    static void execStep(MovementDependency* step);
+    static void addStepToBuffer(MovementDependency* step);
+
+    static inline void setServoAngle(byte pin, byte angle);
+
+    static Movement* movements[__MOV_COUNT];
+    static Actuator* actuators[__ACTUATOR_COUNT];
+    static Action* actions[__ACTION_COUNT];
 
     static Adafruit_PWMServoDriver pwmDriver;
+    static TMC2209Stepper grbDriver, sucDriver;
+    static AccelStepper grbStepper, sucStepper;
 
-    static TMC2209Stepper grbDriver;
-    static AccelStepper grbStepper;
+    static MovementDependency* stepsBuffer[STEP_BUFFER_SIZE];
+    static byte stepsCount;
 
-    static TMC2209Stepper sucDriver;
-    static AccelStepper sucStepper;
-
-    // movements
-
-    static void enablePump(bool enable);
-    static void attachMagnet(bool attach);
-    static void deployArm(bool deploy);
-    static void catchBlock(bool _catch);
-    static void deploySuction(bool deploy);
-    static void moveGrabber(bool up);
-    static void moveSuction(bool up);
-    static void releaseBanner(bool up);
-
-    static bool isGrabberBlockMoved(bool up);
-    static bool isSuctionBlockMoved(bool up);
-
-    static void setServoAngle(uint8_t num, byte angle);
+    static bool actionRunning;
 };

@@ -11,20 +11,11 @@
 class Remote {
     private:
 
-    Remote();
-
-    RF24 radio;
-
-    BaseTimer* timeoutTimer;
-
-    // Singleton stuff
-    Remote(const Remote&) = delete;
-    Remote& operator=(const Remote&) = delete;
+    static RF24 radio;
+    static BaseTimer* timeoutTimer;
     
     public:
     
-    void setup();
-    bool fetch(RemoteData& dataBuffer);
-
-    static Remote& getInstance();
+    static void setup();
+    static bool fetch(RemoteData& dataBuffer);
 };

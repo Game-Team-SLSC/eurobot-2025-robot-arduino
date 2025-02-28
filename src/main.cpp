@@ -5,7 +5,9 @@
 #include <RemoteData.h>
 #include <Timing.h>
 #include <ScoreDisplay.h>
+#include <Movers.h>
 #include <Actuators.h>
+#include <Arduino.h>
 
 RemoteData remoteData;
 
@@ -14,11 +16,14 @@ void setup() {
     info("Powered up !");
 
     info("Radio setup...");
-    Remote::getInstance().setup();
+    Remote::setup();
 
     info("Score display setup...");
     ScoreDisplay::setup();
-
+    
+    info("Movers setup...");
+    Movers::setup();
+    
     info("Actuators setup in 2 seconds. Put the robot in its initial position.");
     delay(2000);
     Actuators::setup();
@@ -26,22 +31,27 @@ void setup() {
     info("Robot ready !");
 }
 
-void preRun() {
+void postRun() {
     DynamicStateController::getInstance().resetStates();
 }
 
 bool acquire() {
-    remoteData = {
-        {128, 128, false}, // joystickLeft
-        {128, 128, false}, // joystickRight
-        {false, false, false, false, false, false, false, false, false, false}, // buttons
-        128, // slider
-        0, // score
-        MIDDLE // sw
-    };
-    
-    return true;
-    //return Remote::getInstance().fetch(remoteData);
+    // for tests
+
+    // remoteData = {
+    //      {0, 0, false}, // joystickLeft
+    //      {0, 0, false}, // joystickRight
+    //      {false, false, false, false, false, false, false, false, false, false}, // buttons
+    //      255, // slider
+    //      0, // score
+    //      MIDDLE // sw
+    // };
+    // GlobalState::remoteConnected->set(true);
+    //
+    //return true;
+
+
+    return Remote::fetch(remoteData);
 }
 
 void process() {
@@ -50,14 +60,16 @@ void process() {
 
 void heartbeat() {
     Timing::update();
+    Movers::update();
     ScoreDisplay::update();
     Actuators::update();
 }
 
 void loop() {
-    preRun();
+    delay(LOOP_DELAY);
     if (acquire()) {
         process();
     }
     heartbeat();
+    postRun();
 }

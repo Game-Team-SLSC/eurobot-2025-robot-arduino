@@ -1,15 +1,16 @@
 #pragma once
 
 enum ActionName {
-    FOLDED,
+    FOLD,
     APPROACH,
     TRANSPORT,
     RELEASE,
-    LATERAL,
+    EXTRACT_STAGE,
     CATCH,
     S1,
     S2,
-    BANNER,
+    BANNER_DEPLOY,
+    CATCH_2S,
 
-    _ACTCOUNT
+    __ACTION_COUNT
 };

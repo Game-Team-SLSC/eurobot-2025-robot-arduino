@@ -14,6 +14,8 @@ void Movers::setup() {
 
 void Movers::update() {
     if (!GlobalState::remoteConnected->get()) {
+        if (!GlobalState::remoteConnected->hasChanged()) return;
+        info("Stopping movers");
         frontDriver.stop();
         rearDriver.stop();
         return;
@@ -22,14 +24,18 @@ void Movers::update() {
 
     Travel travel = GlobalState::travel->get();
 
-    char frw = travel.forward * FRW_MVT_RATIO;
-    char lat = travel.lateral * LATERAL_MVT_RATIO;
-    char yaw = travel.yaw * YAW_FACTOR_RATIO;
+    float speedFactor = GlobalState::speedFactor->get();
 
-    char fl = frw + lat + yaw;
-    char fr = frw - lat - yaw;
-    char rl = frw - lat + yaw;
-    char rr = frw + lat - yaw;
+    int8_t frw = travel.forward * FRW_MVT_RATIO * speedFactor;
+    int8_t lat = travel.lateral * LATERAL_MVT_RATIO * speedFactor;
+    int8_t yaw = travel.yaw * YAW_FACTOR_RATIO * speedFactor;
+
+    int8_t fl = frw + lat + yaw;
+    int8_t fr = frw - lat - yaw;
+    int8_t rl = frw - lat + yaw;
+    int8_t rr = frw + lat - yaw;
+
+    //info("Set motors\n - FL: %D\n - FR: %d\n - RL: %d\n - RR: %d", fl, fr, rl, rr);
 
     if (fl < 0) {
         frontDriver.backwardA();

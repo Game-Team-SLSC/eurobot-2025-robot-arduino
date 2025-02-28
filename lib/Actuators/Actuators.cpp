@@ -1,19 +1,97 @@
-#include <Actuators.h>
+#include "Actuators.h"
+#include <GlobalSettings.h>
 #include <GlobalState.h>
-#include <ActionName.h>
-
-Adafruit_PWMServoDriver Actuators::pwmDriver = Adafruit_PWMServoDriver(0x40);
 
 TMC2209Stepper Actuators::grbDriver = TMC2209Stepper(&GRB_SERIAL, R_SENSE, 0b00);
 TMC2209Stepper Actuators::sucDriver = TMC2209Stepper(&SC_SERIAL, R_SENSE, 0b00);
-
+Adafruit_PWMServoDriver Actuators::pwmDriver = Adafruit_PWMServoDriver(0x40);
 AccelStepper Actuators::grbStepper = AccelStepper(AccelStepper::DRIVER, GRB_STEP, GRB_DIR);
 AccelStepper Actuators::sucStepper = AccelStepper(AccelStepper::DRIVER, SC_STEP, SC_DIR);
 
-Movement* Actuators::movements[_MOVCOUNT];
-Action* Actuators::actions[_ACTCOUNT];
+Movement* Actuators::movements[__MOV_COUNT] = {};
+Actuator* Actuators::actuators[__ACTUATOR_COUNT] = {};
+Action* Actuators::actions[__ACTION_COUNT] = {};
+MovementDependency* Actuators::stepsBuffer[STEP_BUFFER_SIZE];
+byte Actuators::stepsCount = 0;
+bool Actuators::actionRunning = false;
 
 void Actuators::setup() {
+    setupHardware();
+    setupMovements();
+    setupActuators();
+    setupActions();
+}
+
+void Actuators::update() {
+    if (GlobalState::action->hasChanged()) startAction();
+
+    if (!actionRunning) return;
+
+    updateAction();
+
+    grbStepper.run();
+    sucStepper.run();
+}
+
+void Actuators::startAction() {
+    info("Starting action %d", GlobalState::action->get());
+    actionRunning = true;
+
+    // reset buffer
+    for (byte i = 0; i < STEP_BUFFER_SIZE; i++) {
+        stepsBuffer[i] = nullptr;
+    }
+
+    // make buffer
+    Action* action = actions[GlobalState::action->get()];
+    
+    for (byte i = 0; i < action->stepCount; i++) {
+        addStepToBuffer(&action->steps[i]);
+    }
+}
+
+void Actuators::updateAction() {
+    do {
+        if (stepsCount == 0) {
+            info("Action %d finished !", GlobalState::action->get());
+            actionRunning = false;
+            return;
+        }
+        
+        MovementDependency* pStep = stepsBuffer[0];
+        Actuator* pActuator = getActuatorFromMovement(pStep->movement);
+
+        if (pActuator->targetMovement != pStep->movement || pActuator->status == ActuatorStatus::IDLE) {
+            execStep(pStep);
+        }
+
+        if (pStep->desiredStatus == MOVING || pActuator->status == pStep->desiredStatus) {
+            for (byte i = 0; i < stepsCount - 1; i++) {
+                stepsBuffer[i] = stepsBuffer[i + 1];
+            }
+
+            stepsBuffer[stepsCount - 1] = nullptr;
+    
+            stepsCount--;
+        } else return;
+    } while (true);
+}
+
+void Actuators::addStepToBuffer(MovementDependency* pStep) {
+    Movement* pMovement = movements[pStep->movement];
+
+    // Check if dependencies exist before accessing them
+    if (pMovement->dependencies != nullptr && pMovement->dependencyCount > 0) {
+        for (byte i = 0; i < pMovement->dependencyCount; i++) {
+            Actuators::addStepToBuffer(&pMovement->dependencies[i]);
+        }
+    }
+
+    stepsBuffer[stepsCount] = pStep;
+    stepsCount++;
+}
+
+void Actuators::setupHardware() {
     pwmDriver.begin();
     pwmDriver.setOscillatorFrequency(25e6);
     pwmDriver.setPWMFreq(50);
@@ -47,239 +125,412 @@ void Actuators::setup() {
     sucStepper.enableOutputs();
 
     sucStepper.setCurrentPosition(0);
-
-    movements[MAGNET_ATTACH] = new TimedMovement(attachMagnet, 1000);
-    movements[MAGNET_ATTACH]->addDep(new MovementDependency{
-        MovementCall{movements[ARM_DEPLOY], true},
-        true
-    });
-    movements[MAGNET_ATTACH]->addDep(new MovementDependency{
-        MovementCall{movements[ARM_DEPLOY], true},
-        false
-    });
-
-    movements[ARM_DEPLOY] = new TimedMovement(deployArm, 1000);
-    movements[ARM_DEPLOY]->addDep(new MovementDependency{
-        MovementCall{movements[MAGNET_ATTACH], true},
-        true
-    });
-
-    
-    movements[GRABBER_CATCH] = new TimedMovement(catchBlock, 1000);
-    
-    movements[SUCTION_DEPLOY] = new TimedMovement(deploySuction, 1000);
-    movements[SUCTION_DEPLOY]->addDep(new MovementDependency{
-        MovementCall{movements[PUMP_ENABLE], false},
-        false
-    });
-
-    movements[GRABBER_BLOCK_UP] = new TriggeredMovement(moveGrabber, isGrabberBlockMoved);
-    movements[SUCTION_BLOCK_APPLY] = new TriggeredMovement(moveSuction, isSuctionBlockMoved);
-    movements[SUCTION_BLOCK_APPLY]->addDep(new MovementDependency{
-        MovementCall{movements[SUCTION_DEPLOY], true},
-        false
-    });
-
-    movements[PUMP_ENABLE] = new TimedMovement(enablePump, 1000);
-    movements[BANNER_RELEASE] = new TimedMovement(releaseBanner, 1000);
-
-    static MovementCall foldedMovements[] = {
-        // prevent from breaking magnet
-        {movements[ARM_DEPLOY], true},
-        {movements[MAGNET_ATTACH], true},
-        {movements[ARM_DEPLOY], false},
-        
-        // put stage 1
-        {movements[GRABBER_BLOCK_UP], false},
-        {movements[SUCTION_BLOCK_APPLY], false},
-
-        // misc
-        {movements[GRABBER_CATCH], true},
-        {movements[SUCTION_DEPLOY], true},
-        {movements[PUMP_ENABLE], false}
-    };
-
-    static MovementCall approachMovements[] = {
-        // prevent from breaking magnet
-        {movements[ARM_DEPLOY], true},
-        {movements[MAGNET_ATTACH], false},
-        
-        // put stage 1
-        {movements[GRABBER_BLOCK_UP], false},
-        {movements[SUCTION_BLOCK_APPLY], false},
-
-        // misc
-        {movements[GRABBER_CATCH], false},
-        {movements[SUCTION_DEPLOY], false},
-        {movements[PUMP_ENABLE], false}
-    };
-
-    static MovementCall transportMovements[] = {
-        // prevent from breaking magnet
-        {movements[ARM_DEPLOY], true},
-        {movements[MAGNET_ATTACH], true},
-        
-        // put stage 1
-        {movements[GRABBER_BLOCK_UP], false},
-        {movements[SUCTION_BLOCK_APPLY], true},
-
-        // misc
-        {movements[GRABBER_CATCH], true},
-        {movements[SUCTION_DEPLOY], true},
-        {movements[PUMP_ENABLE], false}
-    };
-
-    static MovementCall releaseMovements[] = {
-        // prevent from breaking magnet
-        {movements[ARM_DEPLOY], true},
-        {movements[MAGNET_ATTACH], false},
-        
-        // can be any stage
-        //{movements[GRABBER_BLOCK_UP], false},
-        //{movements[SUCTION_BLOCK_APPLY], false},
-
-        // misc
-        {movements[GRABBER_CATCH], false},
-        {movements[SUCTION_DEPLOY], false},
-        {movements[PUMP_ENABLE], false}
-    };
-
-    static MovementCall lateralMovements[] = {
-        // prevent from breaking magnet
-        {movements[ARM_DEPLOY], true},
-        {movements[MAGNET_ATTACH], false},
-        {movements[ARM_DEPLOY], false},
-        
-        // can be any stage
-        // {movements[GRABBER_BLOCK_UP], false},
-        // {movements[SUCTION_BLOCK_APPLY], false},
-
-        // misc
-        {movements[GRABBER_CATCH], false},
-        {movements[SUCTION_DEPLOY], false},
-        {movements[PUMP_ENABLE], false}
-    };
-
-    static MovementCall catchMovements[] = {
-        // prevent from breaking magnet
-        {movements[ARM_DEPLOY], true},
-        {movements[MAGNET_ATTACH], false},
-        {movements[ARM_DEPLOY], false},
-        
-        // can be any stage
-        // {movements[GRABBER_BLOCK_UP], false},
-        // {movements[SUCTION_BLOCK_APPLY], false},
-
-        // misc
-        {movements[GRABBER_CATCH], true},
-        {movements[SUCTION_DEPLOY], false},
-        {movements[PUMP_ENABLE], false}
-    };
-
-    static MovementCall stage1[] = {
-        // prevent from breaking magnet
-        // {movements[ARM_DEPLOY], true},
-        // {movements[MAGNET_ATTACH], false},
-        // {movements[ARM_DEPLOY], false},
-        
-        // can be any stage
-        {movements[GRABBER_BLOCK_UP], false},
-        {movements[SUCTION_BLOCK_APPLY], false},
-
-        // misc
-        // {movements[GRABBER_CATCH], true},
-        // {movements[SUCTION_DEPLOY], false},
-        // {movements[PUMP_ENABLE], false}
-    };
-
-    static MovementCall stage2[] = {
-        // prevent from breaking magnet
-        // {movements[ARM_DEPLOY], true},
-        // {movements[MAGNET_ATTACH], false},
-        // {movements[ARM_DEPLOY], false},
-        
-        // can be any stage
-        {movements[GRABBER_BLOCK_UP], true},
-        {movements[SUCTION_BLOCK_APPLY], true},
-
-        // misc
-        // {movements[GRABBER_CATCH], true},
-        // {movements[SUCTION_DEPLOY], false},
-        // {movements[PUMP_ENABLE], false}
-    };
-
-    static MovementCall bannerMovements[] = {
-        {movements[BANNER_RELEASE], true}
-    };
-
-    actions[FOLDED] = new Action(foldedMovements, sizeof(foldedMovements) / sizeof(MovementCall));
-    actions[APPROACH] = new Action(approachMovements, sizeof(approachMovements) / sizeof(MovementCall));
-    actions[TRANSPORT] = new Action(transportMovements, sizeof(transportMovements) / sizeof(MovementCall));
-    actions[RELEASE] = new Action(releaseMovements, sizeof(releaseMovements) / sizeof(MovementCall));
-    actions[LATERAL] = new Action(lateralMovements, sizeof(lateralMovements) / sizeof(MovementCall));
-    actions[CATCH] = new Action(catchMovements, sizeof(catchMovements) / sizeof(MovementCall));
-    actions[S1] = new Action(stage1, sizeof(stage1) / sizeof(MovementCall));
-    actions[S2] = new Action(stage2, sizeof(stage2) / sizeof(MovementCall));
-    actions[BANNER] = new Action(bannerMovements, sizeof(bannerMovements) / sizeof(MovementCall));
 }
 
-void Actuators::update()  {
-    Action action = *actions[GlobalState::action->get()];
-    if (GlobalState::action->hasChanged()) {
-        action.execute();
-        return;
+void Actuators::setupMovements() {
+    static MovementDependency magnetAttachDeps[] = {
+        {ARM_DEPLOY, ActuatorStatus::SET}
+    };
+    movements[MAGNET_ATTACH] = new TimedMovement(
+        []() {
+            setServoAngle(GRB_MAGNET_L_PIN, GRB_MAGNET_ATTACH_ANGLE_L);
+            setServoAngle(GRB_MAGNET_R_PIN, GRB_MAGNET_ATTACH_ANGLE_R);
+        },
+        1000,
+        magnetAttachDeps,
+        1
+    );
+
+    static MovementDependency magnetDetachDeps[] = {
+        {ARM_DEPLOY, ActuatorStatus::SET}
+    };
+    movements[MAGNET_DETACH] = new TimedMovement(
+        []() {
+            setServoAngle(GRB_MAGNET_L_PIN, GRB_MAGNET_RELEASE_ANGLE_L);
+            setServoAngle(GRB_MAGNET_R_PIN, GRB_MAGNET_RELEASE_ANGLE_R);
+        },
+        1000,
+        magnetDetachDeps,
+        1
+    );
+
+    movements[ARM_DEPLOY] = new TimedMovement(
+        []() {
+            grbStepper.moveTo(GRB_CATCH_ANGLE_L * STEPS_PER_MM);
+            sucStepper.moveTo(GRB_CATCH_ANGLE_R * STEPS_PER_MM);
+        },
+        1000,
+        nullptr,
+        0
+    );
+
+    static MovementDependency armRetractDeps[] = {
+        {MAGNET_ATTACH, ActuatorStatus::SET}
+    };
+    movements[ARM_RETRACT] = new TimedMovement(
+        []() {
+            grbStepper.moveTo(GRB_RELEASE_ANGLE_L * STEPS_PER_MM);
+            sucStepper.moveTo(GRB_RELEASE_ANGLE_R * STEPS_PER_MM);
+        },
+        1000,
+        armRetractDeps,
+        1
+    );
+
+    movements[GRABBER_CATCH] = new TimedMovement(
+        []() {
+            grbStepper.moveTo(GRB_CATCH_ANGLE_L * STEPS_PER_MM);
+            sucStepper.moveTo(GRB_CATCH_ANGLE_R * STEPS_PER_MM);
+        },
+        1000,
+        nullptr,
+        0
+    );
+
+    movements[GRABBER_RELEASE] = new TimedMovement(
+        []() {
+            grbStepper.moveTo(GRB_RELEASE_ANGLE_L * STEPS_PER_MM);
+            sucStepper.moveTo(GRB_RELEASE_ANGLE_R * STEPS_PER_MM);
+        },
+        1000,
+        nullptr,
+        0
+    );
+
+    movements[SUCTION_DEPLOY] = new TimedMovement(
+        []() {
+            sucStepper.moveTo(GRB_CATCH_ANGLE_R * STEPS_PER_MM);
+        },
+        1000,
+        nullptr,
+        0
+    );
+
+    static MovementDependency sucRetractDeps[] = {
+        {PUMP_DISABLE, ActuatorStatus::SET}
+    };
+    movements[SUCTION_RETRACT] = new TimedMovement(
+        []() {
+            sucStepper.moveTo(GRB_RELEASE_ANGLE_R * STEPS_PER_MM);
+        },
+        1000,
+        sucRetractDeps,
+        1
+    );
+
+    movements[GRABBER_BLOCK_UP] = new TriggeredMovement(
+        []() {
+            // TODO
+        },
+        [](void* pX) {
+            // TODO
+            return true;
+        },
+        2000,
+        nullptr,
+        0
+    );
+
+    movements[GRABBER_BLOCK_DOWN] = new TriggeredMovement(
+        []() {
+            // TODO
+        },
+        [](void* pX) {
+            // TODO
+            return true;
+        },
+        2000,
+        nullptr,
+        0
+    );
+
+    static MovementDependency sucBlockApplyDeps[] = {
+        {SUCTION_DEPLOY, ActuatorStatus::SET}  
+    };
+
+    movements[SUCTION_BLOCK_APPLY] = new TriggeredMovement(
+        []() {
+            // TODO
+        },
+        [](void* pX) {
+            // TODO
+            return true;
+        },
+        2000,
+        sucBlockApplyDeps,
+        1
+    );
+
+    movements[SUCTION_BLOCK_UP] = new TriggeredMovement(
+        []() {
+            // TODO
+        },
+        [](void* pX) {
+            // TODO
+            return true;
+        },
+        2000,
+        nullptr,
+        0
+    );
+
+    movements[SUCTION_BLOCK_DOWN] = new TriggeredMovement(
+        []() {
+            // TODO
+        },
+        [](void* pX) {
+            // TODO
+            return true;
+        },
+        2000,
+        nullptr,
+        0
+    );
+
+    movements[BANNER_RELEASE] = new TimedMovement(
+        []() {
+            setServoAngle(BANNER_PIN, BANNER_DEP_ANGLE);
+        },
+        1000,
+        nullptr,
+        0
+    );
+
+    movements[BANNER_CATCH] = new TimedMovement(
+        []() {
+            setServoAngle(BANNER_PIN, BANNER_RET_ANGLE);
+        },
+        1000,
+        nullptr,
+        0
+    );
+
+    movements[PUMP_ENABLE] = new TimedMovement(
+        []() {
+            digitalWrite(PUMP_RLY, HIGH);
+        },
+        500,
+        nullptr,
+        0
+    );
+
+    movements[PUMP_DISABLE] = new TimedMovement(
+        []() {
+            digitalWrite(PUMP_RLY, LOW);
+        },
+        500,
+        nullptr,
+        0
+    );
+}
+
+void Actuators::setupActuators() {
+    static MovementName magnetMoves[] = {
+        MAGNET_ATTACH,
+        MAGNET_DETACH
+    };
+    actuators[MAGNET] = new Actuator(magnetMoves, sizeof(magnetMoves) / sizeof(MovementName));
+
+    static MovementName armMoves[] = {
+        ARM_DEPLOY,
+        ARM_RETRACT
+    };
+    actuators[ARM] = new Actuator(armMoves, sizeof(armMoves) / sizeof(MovementName));
+
+    static MovementName grabberMoves[] = {
+        GRABBER_CATCH,
+        GRABBER_RELEASE
+    };
+    actuators[GRABBER] = new Actuator(grabberMoves, sizeof(grabberMoves) / sizeof(MovementName));
+
+    static MovementName suctionMoves[] = {
+        SUCTION_DEPLOY,
+        SUCTION_RETRACT
+    };
+    actuators[SUCTION] = new Actuator(suctionMoves, sizeof(suctionMoves) / sizeof(MovementName));
+
+    static MovementName grbBlockMoves[] = {
+        GRABBER_BLOCK_UP,
+        GRABBER_BLOCK_DOWN
+    };
+    actuators[GRB_BLOCK] = new Actuator(grbBlockMoves, sizeof(grbBlockMoves) / sizeof(MovementName));
+
+    static MovementName sucBlockMoves[] = {
+        SUCTION_BLOCK_APPLY,
+        SUCTION_BLOCK_UP,
+        SUCTION_BLOCK_DOWN
+    };
+    actuators[SUC_BLOCK] = new Actuator(sucBlockMoves, sizeof(sucBlockMoves) / sizeof(MovementName));
+
+    static MovementName bannerMoves[] = {
+        BANNER_RELEASE,
+        BANNER_CATCH
+    };
+    actuators[BANNER] = new Actuator(bannerMoves, sizeof(bannerMoves) / sizeof(MovementName));
+
+    static MovementName pumpMoves[] = {
+        PUMP_ENABLE,
+        PUMP_DISABLE
+    };
+    actuators[PUMP] = new Actuator(pumpMoves, sizeof(pumpMoves) / sizeof(MovementName));
+}
+
+void Actuators::setupActions() {
+    static MovementDependency foldSteps[] = {
+        {BANNER_CATCH, ActuatorStatus::MOVING},
+        {ARM_RETRACT, ActuatorStatus::MOVING},
+        {GRABBER_CATCH, ActuatorStatus::MOVING},
+        {GRABBER_BLOCK_DOWN, ActuatorStatus::MOVING},
+        {SUCTION_RETRACT, ActuatorStatus::MOVING},
+        {SUCTION_BLOCK_UP, ActuatorStatus::SET},
+    };
+    actions[FOLD] = new Action(foldSteps, sizeof(foldSteps) / sizeof(MovementDependency));
+
+    static MovementDependency approachSteps[] = {
+        {ARM_DEPLOY, ActuatorStatus::MOVING},
+        {MAGNET_ATTACH, ActuatorStatus::MOVING},
+        {GRABBER_RELEASE, ActuatorStatus::MOVING},
+        {SUCTION_DEPLOY, ActuatorStatus::MOVING},
+        {GRABBER_BLOCK_DOWN, ActuatorStatus::SET},
+    };
+    actions[APPROACH] = new Action(approachSteps, sizeof(approachSteps) / sizeof(MovementDependency));
+
+    static MovementDependency transportSteps[] = {
+        {ARM_DEPLOY, ActuatorStatus::MOVING},
+        {MAGNET_ATTACH, ActuatorStatus::MOVING},
+        {GRABBER_CATCH, ActuatorStatus::MOVING},
+        {SUCTION_BLOCK_APPLY, ActuatorStatus::SET},
+    };
+    actions[TRANSPORT] = new Action(transportSteps, sizeof(transportSteps) / sizeof(MovementDependency));
+
+    static MovementDependency releaseSteps[] = {
+        {PUMP_DISABLE, ActuatorStatus::MOVING},
+        {MAGNET_DETACH, ActuatorStatus::SET},
+    };
+    actions[RELEASE] = new Action(releaseSteps, sizeof(releaseSteps) / sizeof(MovementDependency));
+
+    static MovementDependency extractStageSteps[] = {
+        // Secure catch
+        {GRABBER_CATCH, ActuatorStatus::MOVING},
+        {SUCTION_BLOCK_APPLY, ActuatorStatus::SET},
+        {GRABBER_CATCH, ActuatorStatus::SET},
+
+        // Extraction
+        {ARM_RETRACT, ActuatorStatus::MOVING},
+        {PUMP_ENABLE, ActuatorStatus::SET},
+        {SUCTION_BLOCK_UP, ActuatorStatus::MOVING},
+
+        // Release
+        {GRABBER_RELEASE, ActuatorStatus::SET},
+    };
+    actions[EXTRACT_STAGE] = new Action(extractStageSteps, sizeof(extractStageSteps) / sizeof(MovementDependency));
+
+    static MovementDependency bannerSteps[] = {
+        {BANNER_RELEASE, ActuatorStatus::SET},
+    };
+    actions[BANNER_DEPLOY] = new Action(bannerSteps, sizeof(bannerSteps) / sizeof(MovementDependency));
+
+    static MovementDependency s1Steps[] = {
+        {GRABBER_BLOCK_DOWN, ActuatorStatus::MOVING},
+        {SUCTION_BLOCK_DOWN, ActuatorStatus::SET},
+    };
+    actions[S1] = new Action(s1Steps, sizeof(s1Steps) / sizeof(MovementDependency));
+
+    static MovementDependency s2Steps[] = {
+        {GRABBER_BLOCK_UP, ActuatorStatus::MOVING},
+        {SUCTION_BLOCK_UP, ActuatorStatus::SET},
+    };
+    actions[S2] = new Action(s2Steps, sizeof(s2Steps) / sizeof(MovementDependency));
+
+    static MovementDependency catch2SSteps[] = {
+        {GRABBER_CATCH, ActuatorStatus::SET}
+    };
+    actions[CATCH_2S] = new Action(catch2SSteps, sizeof(catch2SSteps) / sizeof(MovementDependency));
+}
+
+void Actuators::setServoAngle(byte pin, byte angle) {
+    pwmDriver.writeMicroseconds(pin, map(angle, 0, 180, 1000, 2000));
+}
+
+Actuator* Actuators::getActuatorFromMovement(MovementName movement) {
+    for (byte i = 0; i < __ACTUATOR_COUNT; i++) {
+        Actuator* pActuator = actuators[i];
+        for (byte j = 0; j < pActuator->moveCount; j++) {
+            if (pActuator->moves[j] == movement) {
+                return pActuator;
+            }
+        }
     }
 
-    action.update();
+    return nullptr;
 }
 
-// @param angle The desired angle in degrees
-void Actuators::setServoAngle(byte num, byte angle) {
-    pwmDriver.writeMicroseconds(num, map(angle, 0, 180, 1000, 2000));
-}
+void Actuators::execStep(MovementDependency* pStep) {
+    Movement* pMovement = movements[pStep->movement];
+    Actuator* pActuator = getActuatorFromMovement(pStep->movement);
 
-void Actuators::enablePump(bool enable) {
-    digitalWrite(PUMP_ENABLE, enable);
-}
+    info("Executing step %d", pStep->movement);
 
-void Actuators::attachMagnet(bool attach) {
-    setServoAngle(GRB_MAGNET_L_PIN, attach ? GRB_MAGNET_ATTACH_ANGLE_L : GRB_MAGNET_RELEASE_ANGLE_L);
-    setServoAngle(GRB_MAGNET_R_PIN, attach ? GRB_MAGNET_ATTACH_ANGLE_R : GRB_MAGNET_RELEASE_ANGLE_R);
-}
+    pActuator->targetMovement = pStep->movement;
 
-void Actuators::deployArm(bool deploy) {
-    setServoAngle(GRB_ARM_L_PIN, deploy ? GRB_ARM_DEP_ANGLE_L : GRB_ARM_RET_ANGLE_L);
-    setServoAngle(GRB_ARM_R_PIN, deploy ? GRB_ARM_DEP_ANGLE_R : GRB_ARM_RET_ANGLE_R);
-}
+    for (byte i = 0; i < pActuator->moveCount; i++) {
+        Movement* pActMove = movements[pActuator->moves[i]];
 
-void Actuators::catchBlock(bool _catch) {
-    setServoAngle(GRB_L_PIN, _catch ? GRB_CATCH_ANGLE_L : GRB_RELEASE_ANGLE_L);
-    setServoAngle(GRB_R_PIN, _catch ? GRB_CATCH_ANGLE_R : GRB_RELEASE_ANGLE_R);
-}
+        // triggered movements need to be canceled, otherwise, they will stop new movement from old one
+        if (pActMove->getType() == MovementType::TRIGGERED) {
+            TriggeredMovement* pTimedActMove = static_cast<TriggeredMovement*>(pActMove);
 
-void Actuators::deploySuction(bool deploy) {
-    setServoAngle(SC_L_PIN, deploy ? SC_DEP_ANGLE_L : SC_RET_ANGLE_L);
-    setServoAngle(SC_R_PIN, deploy ? SC_DEP_ANGLE_R : SC_RET_ANGLE_R);
-}
+            if (pTimedActMove->timeoutTimer != nullptr) {
+                Timing::cancelTimer(pTimedActMove->timeoutTimer);
+                pTimedActMove->timeoutTimer = nullptr;
+            }
 
-void Actuators::moveGrabber(bool up) {
-    // TODO
-}
+            if (pTimedActMove->checkerTask != nullptr) {
+                Timing::cancelTimer(pTimedActMove->checkerTask);
+                pTimedActMove->checkerTask = nullptr;
+            }
+        }
+    }
 
-void Actuators::moveSuction(bool up) {
-    // TODO
-}
+    if (pMovement->getType() == MovementType::TIMED) {
+        TimedMovement* timedMovement = static_cast<TimedMovement*>(pMovement);
+        
+        if (timedMovement->timer != nullptr) {
+            Timing::cancelTimer(timedMovement->timer);
+            timedMovement->timer = nullptr;
+        }
 
-void Actuators::releaseBanner(bool release) {
-    setServoAngle(BANNER_PIN, release ? BANNER_DEP_ANGLE : BANNER_RET_ANGLE);
-}
+        timedMovement->timer = Timing::in(timedMovement->duration, [](void* pActuator) {
+            Actuator& actuator = *static_cast<Actuator*>(pActuator);
+            
+            actuator.status = ActuatorStatus::SET;
+        }, pActuator);
+    } else {
+        TriggeredMovement* triggeredMovement = static_cast<TriggeredMovement*>(pMovement);
+        
+        if (triggeredMovement->timeoutTimer != nullptr) {
+            Timing::cancelTimer(triggeredMovement->timeoutTimer);
+            triggeredMovement->timeoutTimer = nullptr;
+        }
 
-bool Actuators::isGrabberBlockMoved(bool up) {
-    // TODO
-    return true;
-}
+        triggeredMovement->timeoutTimer = Timing::in(triggeredMovement->timeout, [](void* pActuator) {
+            Actuator& actuator = *static_cast<Actuator*>(pActuator);
+            
+            actuator.status = ActuatorStatus::SET;
+        }, pActuator);
 
-bool Actuators::isSuctionBlockMoved(bool up) {
-    // TODO
-    return true;
+        if (triggeredMovement->checkerTask != nullptr) {
+            Timing::cancelTimer(triggeredMovement->checkerTask);
+            triggeredMovement->checkerTask = nullptr;
+        }
+
+        triggeredMovement->checkerTask = Timing::when(triggeredMovement->checker, [](void* pActuator) {
+            Actuator& actuator = *static_cast<Actuator*>(pActuator);
+            
+            actuator.status = ActuatorStatus::SET;
+        }, pActuator, nullptr);
+    }
+
+    pActuator->status = ActuatorStatus::MOVING;
+    pMovement->callback();
 }

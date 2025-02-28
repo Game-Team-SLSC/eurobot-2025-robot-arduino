@@ -1,6 +1,7 @@
 #include <Timing.h>
 
 BaseTimer* Timing::timers[MAX_TIMERS] = {nullptr};
+BaseTimer* Timing::preRunTimers[MAX_PRE_RUN_TIMERS] = {nullptr};
 
 InTimer* Timing::in(unsigned int delay, void(*callback)(void*), void* arg, bool isPreRun) {
     InTimer* timer = new InTimer(delay, callback, arg);
