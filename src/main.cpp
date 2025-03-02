@@ -1,5 +1,6 @@
 #include <Remote.h>
 #include <GlobalState.h>
+#include <GlobalSettings.h>
 #include <DynamicStateController.h>
 #include <Logger.h>
 #include <RemoteData.h>
@@ -7,16 +8,22 @@
 #include <ScoreDisplay.h>
 #include <Movers.h>
 #include <Actuators.h>
+#include <Auto.h>
 #include <Arduino.h>
 
 RemoteData remoteData;
+RemoteData emulatedData;
 
 void setup() {
     loggerSetup();
     info("Powered up !");
 
+    #ifdef MOCK_REMOTE
+    warn("MOCK_REMOTE is enabled. Remote data will be emulated.");
+    #else
     info("Radio setup...");
     Remote::setup();
+    #endif
 
     info("Score display setup...");
     ScoreDisplay::setup();
@@ -31,31 +38,29 @@ void setup() {
     info("Robot ready !");
 }
 
+void preRun() {
+    Timing::updatePreRun();
+}
+
 void postRun() {
     DynamicStateController::getInstance().resetStates();
 }
 
 bool acquire() {
-    // for tests
+    #ifdef MOCK_REMOTE
+    bool remoteSuccess = true;
+    GlobalState::remoteConnected->set(true);
+    #else
+    bool remoteSuccess = Remote::fetch(remoteData);
+    #endif
 
-    // remoteData = {
-    //      {0, 0, false}, // joystickLeft
-    //      {0, 0, false}, // joystickRight
-    //      {false, false, false, false, false, false, false, false, false, false}, // buttons
-    //      255, // slider
-    //      0, // score
-    //      MIDDLE // sw
-    // };
-    // GlobalState::remoteConnected->set(true);
-    //
-    //return true;
-
-
-    return Remote::fetch(remoteData);
+    Auto::fetchData(emulatedData);
+    
+    return remoteSuccess;
 }
 
 void process() {
-    GlobalState::updateFromController(remoteData);
+    GlobalState::update(remoteData, emulatedData);
 }
 
 void heartbeat() {
@@ -67,9 +72,9 @@ void heartbeat() {
 
 void loop() {
     delay(LOOP_DELAY);
-    if (acquire()) {
-        process();
-    }
+    preRun();
+    acquire();
+    process();
     heartbeat();
     postRun();
 }

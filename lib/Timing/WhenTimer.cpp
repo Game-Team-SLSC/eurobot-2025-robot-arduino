@@ -10,5 +10,6 @@ checkerArg(checkerArg)
 void WhenTimer::update() {
     if (!checker(checkerArg)) return;
 
+    dead = true;
     callback(arg);
 }

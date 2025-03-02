@@ -2,19 +2,28 @@
 
 BaseTimer* Timing::timers[MAX_TIMERS] = {nullptr};
 BaseTimer* Timing::preRunTimers[MAX_PRE_RUN_TIMERS] = {nullptr};
+byte Timing::timersCount = 0;
+byte Timing::preRunTimersCount = 0;
 
 InTimer* Timing::in(unsigned int delay, void(*callback)(void*), void* arg, bool isPreRun) {
     InTimer* timer = new InTimer(delay, callback, arg);
 
-    byte index = getTimerCount();
-
-    if (index >= MAX_TIMERS) {
-        error("Timer stack overflow");
-        return nullptr;
+    if (isPreRun) {
+        if (preRunTimersCount >= MAX_PRE_RUN_TIMERS) {
+            error("Pre-run timer stack overflow");
+            return nullptr;
+        }
+        preRunTimers[preRunTimersCount] = timer;
+        preRunTimersCount++;
     }
-
-    if (isPreRun) preRunTimers[index] = timer;
-    else timers[index] = timer;
+    else {
+        if (timersCount >= MAX_TIMERS) {
+            error("Pre run Timer stack overflow");
+            return nullptr;
+        }
+        timers[timersCount] = timer;
+        timersCount++;
+    }
 
     return timer;
 }
@@ -22,15 +31,22 @@ InTimer* Timing::in(unsigned int delay, void(*callback)(void*), void* arg, bool 
 EveryTimer* Timing::every(unsigned int interval, bool(*callback)(void*), void* arg, bool isPreRun) {
     EveryTimer* timer = new EveryTimer(interval, callback, arg);
 
-    byte index = getTimerCount();
-
-    if (index >= MAX_TIMERS) {
-        error("Timer stack overflow");
-        return nullptr;
+    if (isPreRun) {
+        if (preRunTimersCount >= MAX_PRE_RUN_TIMERS) {
+            error("Pre-run timer stack overflow");
+            return nullptr;
+        }
+        preRunTimers[preRunTimersCount] = timer;
+        preRunTimersCount++;
     }
-
-    if (isPreRun) preRunTimers[index] = timer;
-    else timers[index] = timer;
+    else {
+        if (timersCount >= MAX_TIMERS) {
+            error("Pre run Timer stack overflow");
+            return nullptr;
+        }
+        timers[timersCount] = timer;
+        timersCount++;
+    }
 
     return timer;
 }
@@ -38,51 +54,60 @@ EveryTimer* Timing::every(unsigned int interval, bool(*callback)(void*), void* a
 WhenTimer* Timing::when(bool(*checker)(void*), void(*callback)(void*), void* checkerArg, void* arg, bool isPreRun) {
     WhenTimer* timer = new WhenTimer(checker, callback, checkerArg, arg);
 
-    byte index = getTimerCount();
-
-    if (index >= MAX_TIMERS) {
-        error("Timer stack overflow");
-        return nullptr;
+    if (isPreRun) {
+        if (preRunTimersCount >= MAX_PRE_RUN_TIMERS) {
+            error("Pre-run timer stack overflow");
+            return nullptr;
+        }
+        preRunTimers[preRunTimersCount] = timer;
+        preRunTimersCount++;
     }
-
-    if (isPreRun) preRunTimers[index] = timer;
-    else timers[index] = timer;
+    else {
+        if (timersCount >= MAX_TIMERS) {
+            error("Timers stack overflow");
+            return nullptr;
+        }
+        timers[timersCount] = timer;
+        timersCount++;
+    }
 
     return timer;
 }
 
 void Timing::cancelTimer(BaseTimer* timer) {
-    byte newElemIndex = getTimerCount();
-
-    for (byte i = 0; i < newElemIndex; ++i) {
+    for (byte i = 0; i < timersCount; ++i) {
         if (timers[i] != timer) continue;
 
         deleteTimer(timer, i);
+
+        i--;
+        break;
+    }
+}
+
+void Timing::cancelPreRunTimer(BaseTimer* timer) {
+    for (byte i = 0; i < preRunTimersCount; ++i) {
+        if (preRunTimers[i] != timer) continue;
+
+        deletePreRunTimer(timer, i);
         break;
     }
 }
 
 void Timing::updatePreRun() {
-    byte newElemIndex = getPreRunTimerCount();
-
-    for (int i = 0; i < newElemIndex; ++i) {
+    for (int i = 0; i < preRunTimersCount; ++i) {
         BaseTimer* timer = preRunTimers[i];
 
         timer->update();
 
         if (!timer->isDead()) continue;
         
-        deleteTimer(timer, i);
-
-        --newElemIndex;
-        --i;
+        deletePreRunTimer(timer, i);
     }
 }
 
 void Timing::update() {
-    byte newElemIndex = getTimerCount();
-
-    for (int i = 0; i < newElemIndex; ++i) {
+    for (int i = 0; i < timersCount; ++i) {
         BaseTimer* timer = timers[i];
 
         timer->update();
@@ -90,38 +115,27 @@ void Timing::update() {
         if (!timer->isDead()) continue;
         
         deleteTimer(timer, i);
-
-        --newElemIndex;
-        --i;
     }
 }
 
 void Timing::deleteTimer(BaseTimer* timer, byte index) {
-    byte newElemIndex = getTimerCount();
-    
     delete timer;
 
-    for (byte j = index; j < newElemIndex - 1; ++j) {
+    for (byte j = index; j < timersCount - 1; ++j) {
         timers[j] = timers[j + 1];
     }
 
-    timers[newElemIndex - 1] = nullptr;
+    timers[timersCount - 1] = nullptr;
+    timersCount--;
 }
 
-byte Timing::getTimerCount() {
-    byte newElemIndex = 0;
-    while (newElemIndex < MAX_TIMERS && timers[newElemIndex] != nullptr) {
-        ++newElemIndex;
+void Timing::deletePreRunTimer(BaseTimer* timer, byte index) {
+    delete timer;
+
+    for (byte j = index; j < preRunTimersCount - 1; ++j) {
+        preRunTimers[j] = preRunTimers[j + 1];
     }
 
-    return newElemIndex;
-}
-
-byte Timing::getPreRunTimerCount() {
-    byte newElemIndex = 0;
-    while (newElemIndex < MAX_PRE_RUN_TIMERS && preRunTimers[newElemIndex] != nullptr) {
-        ++newElemIndex;
-    }
-
-    return newElemIndex;
+    preRunTimers[preRunTimersCount - 1] = nullptr;
+    preRunTimersCount--;
 }

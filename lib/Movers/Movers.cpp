@@ -20,11 +20,15 @@ void Movers::update() {
         rearDriver.stop();
         return;
     }
-    if (!GlobalState::travel->hasChanged()) return;
+    if (!GlobalState::travel->hasChanged() && !GlobalState::speedFactor->hasChanged()) return;
 
     Travel travel = GlobalState::travel->get();
 
     float speedFactor = GlobalState::speedFactor->get();
+
+    char speedFactorStr[10];
+    dtostrf(speedFactor, 4, 2, speedFactorStr);
+    info("Speed factor : %s", speedFactorStr);
 
     int8_t frw = travel.forward * FRW_MVT_RATIO * speedFactor;
     int8_t lat = travel.lateral * LATERAL_MVT_RATIO * speedFactor;
@@ -35,7 +39,7 @@ void Movers::update() {
     int8_t rl = frw - lat + yaw;
     int8_t rr = frw + lat - yaw;
 
-    //info("Set motors\n - FL: %D\n - FR: %d\n - RL: %d\n - RR: %d", fl, fr, rl, rr);
+    info("Set motors\n - FL: %d\n - FR: %d\n - RL: %d\n - RR: %d", fl, fr, rl, rr);
 
     if (fl < 0) {
         frontDriver.backwardA();

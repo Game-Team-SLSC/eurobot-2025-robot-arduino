@@ -20,13 +20,16 @@ class Timing {
     static void update();
     static void updatePreRun();
     static void cancelTimer(BaseTimer* timer);
+    static void cancelPreRunTimer(BaseTimer* timer);
 
     private:
 
+    static byte timersCount;
+    static byte preRunTimersCount;
+
     static void deleteTimer(BaseTimer* timer, byte index);
+    static void deletePreRunTimer(BaseTimer* timer, byte index);
 
     static BaseTimer* preRunTimers[MAX_PRE_RUN_TIMERS];
     static BaseTimer* timers[MAX_TIMERS];
-    static byte getTimerCount();
-    static byte getPreRunTimerCount();
 };

@@ -5,16 +5,18 @@
 
 #define LOOP_DELAY 50
 
-// SERIAL OUTPUT
+// DEBUG
+
+#define MOCK_REMOTE
 
 #define LOG_STATE
 #define ERROR_STATE
 #define WARN_STATE
 #define INFO_STATE
 
-#define INFO_TAG "[INFO] - "
-#define WARN_TAG "[WARN] - "
-#define ERROR_TAG "[ERROR] - "
+#define INFO_TAG "\033[34m[INFO] - "
+#define WARN_TAG "\033[33m[WARN] - "
+#define ERROR_TAG "\033[31m[ERROR] - "
 
 // RF24
 
@@ -30,12 +32,12 @@
 
 // STEPPERS
 
-#define GRB_UP_HEIGHT 100
+#define GRB_UP_HEIGHT 100 //mm
 #define GRB_STEP 34
 #define GRB_DIR 36
 #define GRB_SERIAL Serial2
 
-#define SC_UP_HEIGHT 100
+#define SC_UP_HEIGHT 100 //mm
 #define SC_STEP 38
 #define SC_DIR 40
 #define SC_SERIAL Serial3
@@ -75,6 +77,8 @@
 #define RR_EN 11
 #define RR_IN1 12
 #define RR_IN2 13
+
+#define APPROACH_SPEED_FACTOR 0.3
 
 // ACTUATORS
 
@@ -119,8 +123,8 @@
 enum Buttons {
     // Auto
     GAME_START_AUTO_BTN,
-    STACK_2_AUTO_BTN,
-    STACK_3_AUTO_BTN,
+    STAGES_2_AUTO_BTN,
+    STAGES_3_AUTO_BTN,
 
     // Actions
     APPROACH_BTN,
@@ -135,6 +139,11 @@ enum Buttons {
     STAGE_2_BTN,
     FOLD_BTN,
     SLOW_DOWN_BTN,
+    
+    RIGHT_SIDE_BTN,
+    LEFT_SIDE_BTN,
+
+    CATCH_2S_BTN,
 
     _BUTCOUNT
 };

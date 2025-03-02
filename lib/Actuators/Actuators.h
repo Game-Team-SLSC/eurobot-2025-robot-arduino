@@ -3,6 +3,7 @@
 #include <TMCStepper.h>
 #include <AccelStepper.h>
 #include <Adafruit_PWMServoDriver.h>
+#include <VL53L0X.h>
 
 #include "classes/Movement.h"
 #include "classes/Actuator.h"
@@ -18,6 +19,8 @@ class Actuators {
     
     static void setup();
     static void update();
+
+    static bool isActionRunning();
 
     private:
 
@@ -42,6 +45,7 @@ class Actuators {
     static Adafruit_PWMServoDriver pwmDriver;
     static TMC2209Stepper grbDriver, sucDriver;
     static AccelStepper grbStepper, sucStepper;
+    static VL53L0X distanceSensor;
 
     static MovementDependency* stepsBuffer[STEP_BUFFER_SIZE];
     static byte stepsCount;

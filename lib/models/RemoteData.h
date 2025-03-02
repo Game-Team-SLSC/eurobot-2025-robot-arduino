@@ -2,16 +2,16 @@
 
 #include <Arduino.h>
 #include <JoystickData.h>
-
-enum SWITCH_3_POS {UP, DOWN, MIDDLE};
+#include <GlobalSettings.h>
 
 struct RemoteData
 {
     JoystickData joystickLeft;
     JoystickData joystickRight;
 
-    bool buttons[10]; // for each button true if pressed
-    byte slider; // 0 to 255
-    byte score; // 0 to 255
-    SWITCH_3_POS sw; // 3 position switch
+    bool buttons[_BUTCOUNT] = {
+        false, false, false, false, false, false, false, false, false, false, false, false, false
+    }; // for each button true if pressed
+    byte slider = 255; // 0 to 255
+    byte score = DEFAULT_SCORE; // 0 to 255
 };

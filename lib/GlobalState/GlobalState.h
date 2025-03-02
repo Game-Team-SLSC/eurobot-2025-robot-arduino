@@ -11,7 +11,7 @@
 class GlobalState {
     public:
 
-    static void updateFromController(RemoteData& remoteData);
+    static void update(RemoteData& remoteData, RemoteData& emulatedData);
 
     static DynamicState<ActionName>* action;
     static DynamicState<byte>* score;
@@ -22,4 +22,6 @@ class GlobalState {
     static DynamicState<bool>* isRightSide;
 
     private: 
+
+    static void updateRaw(RemoteData& data);
 };

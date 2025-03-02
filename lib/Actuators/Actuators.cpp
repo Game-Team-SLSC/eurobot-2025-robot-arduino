@@ -1,12 +1,14 @@
 #include "Actuators.h"
 #include <GlobalSettings.h>
 #include <GlobalState.h>
+#include <Wire.h>
 
 TMC2209Stepper Actuators::grbDriver = TMC2209Stepper(&GRB_SERIAL, R_SENSE, 0b00);
 TMC2209Stepper Actuators::sucDriver = TMC2209Stepper(&SC_SERIAL, R_SENSE, 0b00);
 Adafruit_PWMServoDriver Actuators::pwmDriver = Adafruit_PWMServoDriver(0x40);
 AccelStepper Actuators::grbStepper = AccelStepper(AccelStepper::DRIVER, GRB_STEP, GRB_DIR);
 AccelStepper Actuators::sucStepper = AccelStepper(AccelStepper::DRIVER, SC_STEP, SC_DIR);
+VL53L0X Actuators::distanceSensor = VL53L0X();
 
 Movement* Actuators::movements[__MOV_COUNT] = {};
 Actuator* Actuators::actuators[__ACTUATOR_COUNT] = {};
@@ -33,6 +35,10 @@ void Actuators::update() {
     sucStepper.run();
 }
 
+bool Actuators::isActionRunning() {
+    return actionRunning;
+}
+
 void Actuators::startAction() {
     info("Starting action %d", GlobalState::action->get());
     actionRunning = true;
@@ -51,7 +57,7 @@ void Actuators::startAction() {
 }
 
 void Actuators::updateAction() {
-    do {
+    for(;;) {
         if (stepsCount == 0) {
             info("Action %d finished !", GlobalState::action->get());
             actionRunning = false;
@@ -74,7 +80,7 @@ void Actuators::updateAction() {
     
             stepsCount--;
         } else return;
-    } while (true);
+    }
 }
 
 void Actuators::addStepToBuffer(MovementDependency* pStep) {
@@ -92,6 +98,7 @@ void Actuators::addStepToBuffer(MovementDependency* pStep) {
 }
 
 void Actuators::setupHardware() {
+    Wire.begin();
     pwmDriver.begin();
     pwmDriver.setOscillatorFrequency(25e6);
     pwmDriver.setPWMFreq(50);
@@ -220,11 +227,10 @@ void Actuators::setupMovements() {
 
     movements[GRABBER_BLOCK_UP] = new TriggeredMovement(
         []() {
-            // TODO
+            grbStepper.moveTo(GRB_UP_HEIGHT * STEPS_PER_MM);
         },
         [](void* pX) {
-            // TODO
-            return true;
+            return grbStepper.distanceToGo() == 0;
         },
         2000,
         nullptr,
@@ -233,11 +239,10 @@ void Actuators::setupMovements() {
 
     movements[GRABBER_BLOCK_DOWN] = new TriggeredMovement(
         []() {
-            // TODO
+            grbStepper.moveTo(0);
         },
         [](void* pX) {
-            // TODO
-            return true;
+            return grbStepper.distanceToGo() == 0;
         },
         2000,
         nullptr,
@@ -250,11 +255,15 @@ void Actuators::setupMovements() {
 
     movements[SUCTION_BLOCK_APPLY] = new TriggeredMovement(
         []() {
-            // TODO
+            distanceSensor.startContinuous();
+            sucStepper.moveTo(0);
         },
         [](void* pX) {
-            // TODO
-            return true;
+            bool isApplying = distanceSensor.readRangeContinuousMillimeters() <= 40;
+            if (isApplying) {
+                distanceSensor.stopContinuous();
+            }
+            return isApplying || sucStepper.distanceToGo() == 0;
         },
         2000,
         sucBlockApplyDeps,
@@ -263,11 +272,10 @@ void Actuators::setupMovements() {
 
     movements[SUCTION_BLOCK_UP] = new TriggeredMovement(
         []() {
-            // TODO
+            
         },
         [](void* pX) {
-            // TODO
-            return true;
+            return grbStepper.distanceToGo() == 0;
         },
         2000,
         nullptr,
@@ -276,11 +284,10 @@ void Actuators::setupMovements() {
 
     movements[SUCTION_BLOCK_DOWN] = new TriggeredMovement(
         []() {
-            // TODO
+            grbStepper.moveTo(0);
         },
         [](void* pX) {
-            // TODO
-            return true;
+            return grbStepper.distanceToGo() == 0;
         },
         2000,
         nullptr,
@@ -469,7 +476,7 @@ void Actuators::execStep(MovementDependency* pStep) {
     Movement* pMovement = movements[pStep->movement];
     Actuator* pActuator = getActuatorFromMovement(pStep->movement);
 
-    info("Executing step %d", pStep->movement);
+    info("Executing action step %d", pStep->movement);
 
     pActuator->targetMovement = pStep->movement;
 
