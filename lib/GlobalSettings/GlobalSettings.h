@@ -62,21 +62,21 @@
 #define X_MOVE_FACTOR 255
 #define Y_MOVE_FACTOR 255
 
-#define FL_EN 2
-#define FL_IN1 3
-#define FL_IN2 4
+#define FL_EN 4
+#define FL_IN1 5
+#define FL_IN2 6
 
-#define FR_EN 5
-#define FR_IN1 6
-#define FR_IN2 7
+#define FR_EN 9
+#define FR_IN1 7
+#define FR_IN2 8
 
-#define RL_EN 8
-#define RL_IN1 9
-#define RL_IN2 10
+#define RL_EN 45
+#define RL_IN1 46
+#define RL_IN2 47
 
-#define RR_EN 11
-#define RR_IN1 12
-#define RR_IN2 13
+#define RR_EN 44
+#define RR_IN1 42
+#define RR_IN2 43
 
 #define APPROACH_SPEED_FACTOR 0.3
 
