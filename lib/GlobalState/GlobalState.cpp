@@ -6,7 +6,7 @@ DynamicState<byte>* GlobalState::score = createState(byte(DEFAULT_SCORE));
 DynamicState<Travel>* GlobalState::travel = createState(Travel{0, 0, 0});
 DynamicState<float>* GlobalState::speedFactor = createState(1.f);
 DynamicState<bool>* GlobalState::remoteConnected = createState(false);
-DynamicState<RunMode>* GlobalState::runMode = createState(AUTO_GAME_START);
+DynamicState<RunMode>* GlobalState::runMode = createState(POSITIONS);
 DynamicState<bool>* GlobalState::isRightSide = createState(true);
 
 void GlobalState::update(RemoteData& remoteData, RemoteData& emulatedData) {
@@ -15,14 +15,11 @@ void GlobalState::update(RemoteData& remoteData, RemoteData& emulatedData) {
             if (i == GAME_START_AUTO_BTN || i == STAGES_2_AUTO_BTN || i == STAGES_3_AUTO_BTN) continue;
             
             if (remoteData.buttons[i]) {
+                warn("Back to positions");
                 runMode->set(POSITIONS);
                 return;
             }
         }
-    }
-
-    if (runMode->hasChanged()) {
-        warn("new run mode %d", runMode->get());
     }
 
     runMode->set(
@@ -30,6 +27,10 @@ void GlobalState::update(RemoteData& remoteData, RemoteData& emulatedData) {
         remoteData.buttons[STAGES_2_AUTO_BTN] ? AUTO_2_STAGE :
         remoteData.buttons[STAGES_3_AUTO_BTN] ? AUTO_3_STAGE :
         runMode->get());
+
+    if (runMode->hasChanged()) {
+        warn("new run mode %d", runMode->get());
+    }
 
     score->set(remoteData.score);
 
@@ -47,10 +48,12 @@ void GlobalState::update(RemoteData& remoteData, RemoteData& emulatedData) {
 
 void GlobalState::updateRaw(RemoteData& data) {
     travel->set(Travel{
-        data.joystickRight.x,
-        abs(data.joystickLeft.y) > abs(data.joystickRight.y) ? data.joystickLeft.y :data.joystickRight.y,
-        data.joystickLeft.x
+        static_cast<int8_t>(map(255 - data.joystickLeft.y, 0, 256, -127, 128)),
+        static_cast<int8_t>(map(data.joystickLeft.x, 0, 256, -127, 128)),
+        static_cast<int8_t>(map(data.joystickRight.x, 0, 256, -127, 128))
     });
+
+    //warn("Travel infos %d, %d, %d", travel->get().forward, travel->get().lateral, travel->get().yaw);
 
     action->set(
         data.buttons[APPROACH_BTN]? ActionName::APPROACH:

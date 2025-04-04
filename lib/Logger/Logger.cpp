@@ -6,4 +6,6 @@ void loggerSetup() {
     Serial.begin(9600);
     printf_begin();
 }
+#else
+void loggerSetup();
 #endif

@@ -17,6 +17,7 @@ class Auto {
     static AutoStep* stepsBuffer[MAX_STEPS];
     static byte stepCount;
     static bool isRunning;
+    static byte lastRunMode;
 
     static void pressButton(Buttons button);
     static void setJoysticks(int8_t x, int8_t y, int8_t z);

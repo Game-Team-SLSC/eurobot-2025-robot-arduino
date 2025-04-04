@@ -1,72 +1,64 @@
 #include <Movers.h>
 
-const float LATERAL_MVT_RATIO = X_MOVE_FACTOR/255;
-const float FRW_MVT_RATIO = Y_MOVE_FACTOR/255;
-const float YAW_FACTOR_RATIO = YAW_FACTOR/255;
+const Travel stopTravel = {0, 0, 0};
 
-L298NX2 Movers::frontDriver(FL_EN, FL_IN1, FL_IN2, FR_EN, FR_IN1, FR_IN2);
-L298NX2 Movers::rearDriver(RL_EN, RL_IN1, RL_IN2, RR_EN, RR_IN1, RR_IN2);
+SoftwareSerial Movers::leftSerial(NOT_A_PIN, SBR_L);
+SoftwareSerial Movers::rightSerial(NOT_A_PIN, SBR_R);
+SabertoothSimplified Movers::leftSB(leftSerial);
+SabertoothSimplified Movers::rightSB(rightSerial);
+
+int8_t Movers::lastFR = 0;
+int8_t Movers::lastFL = 0;
+int8_t Movers::lastRR = 0;
+int8_t Movers::lastRL = 0;
 
 void Movers::setup() {
-    frontDriver.stop();
-    rearDriver.stop();
+    leftSerial.begin(9600);
+    rightSerial.begin(9600);
+    leftSB.stop();
+    rightSB.stop();
 };
+
+int8_t Movers::lerp(int8_t a, int8_t b, float t) {
+    return a + int8_t(t * (b - a));
+}
 
 void Movers::update() {
     if (!GlobalState::remoteConnected->get()) {
         if (!GlobalState::remoteConnected->hasChanged()) return;
         info("Stopping movers");
-        frontDriver.stop();
-        rearDriver.stop();
+        leftSB.stop();
+        rightSB.stop();
         return;
     }
-    if (!GlobalState::travel->hasChanged() && !GlobalState::speedFactor->hasChanged()) return;
-
+    
     Travel travel = GlobalState::travel->get();
+
+    if (travel == stopTravel) {
+        info("Stopping movers");
+        leftSB.stop();
+        rightSB.stop();
+        return;
+    }
 
     float speedFactor = GlobalState::speedFactor->get();
 
-    char speedFactorStr[10];
-    dtostrf(speedFactor, 4, 2, speedFactorStr);
-    info("Speed factor : %s", speedFactorStr);
+    int8_t frw = travel.forward * Y_MOVE_FACTOR * speedFactor;
+    int8_t lat = travel.lateral * X_MOVE_FACTOR * speedFactor;
+    int8_t yaw = travel.yaw * YAW_FACTOR * speedFactor;
 
-    int8_t frw = travel.forward * FRW_MVT_RATIO * speedFactor;
-    int8_t lat = travel.lateral * LATERAL_MVT_RATIO * speedFactor;
-    int8_t yaw = travel.yaw * YAW_FACTOR_RATIO * speedFactor;
+    int16_t flUnconstrained = - frw - yaw - lat;
+    int16_t frUnconstrained = - frw + yaw + lat;
+    int16_t rlUnconstrained = frw + yaw - lat;
+    int16_t rrUnconstrained = frw - yaw + lat;
 
-    int8_t fl = frw + lat + yaw;
-    int8_t fr = frw - lat - yaw;
-    int8_t rl = frw - lat + yaw;
-    int8_t rr = frw + lat - yaw;
+    lastFL = constrain(lerp(lastFL, flUnconstrained, MOVERS_RAMPING), -127, 127);
+    lastFR = constrain(lerp(lastFR, frUnconstrained, MOVERS_RAMPING), -127, 127);
+    lastRL = constrain(lerp(lastRL, rlUnconstrained, MOVERS_RAMPING), -127, 127);
+    lastRR = constrain(lerp(lastRR, rrUnconstrained, MOVERS_RAMPING), -127, 127);
 
-    info("Set motors\n - FL: %d\n - FR: %d\n - RL: %d\n - RR: %d", fl, fr, rl, rr);
-
-    if (fl < 0) {
-        frontDriver.backwardA();
-    } else {
-        frontDriver.forwardA();
-    }
-
-    if (fr < 0) {
-        frontDriver.backwardB();
-    } else {
-        frontDriver.forwardB();
-    }
-
-    if (rl < 0) {
-        rearDriver.backwardA();
-    } else {
-        rearDriver.forwardA();
-    }
-
-    if (rr < 0) {
-        rearDriver.backwardB();
-    } else {
-        rearDriver.forwardB();
-    }
-
-    frontDriver.setSpeedA(abs(fl) * 2);
-    frontDriver.setSpeedB(abs(fr) * 2);
-    rearDriver.setSpeedA(abs(rl) * 2);
-    rearDriver.setSpeedB(abs(rr) * 2);
+    leftSB.motor(MOVER_FL, lastFL);
+    leftSB.motor(MOVER_RL, lastRL);
+    rightSB.motor(MOVER_FR, lastFR);
+    rightSB.motor(MOVER_RR, lastRR);
 };

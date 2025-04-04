@@ -2,6 +2,7 @@
 #include <GlobalSettings.h>
 #include <GlobalState.h>
 #include <Wire.h>
+#include <TimerOne.h>
 
 TMC2209Stepper Actuators::grbDriver = TMC2209Stepper(&GRB_SERIAL, R_SENSE, 0b00);
 TMC2209Stepper Actuators::sucDriver = TMC2209Stepper(&SC_SERIAL, R_SENSE, 0b00);
@@ -31,8 +32,6 @@ void Actuators::update() {
 
     updateAction();
 
-    grbStepper.run();
-    sucStepper.run();
 }
 
 bool Actuators::isActionRunning() {
@@ -99,8 +98,9 @@ void Actuators::addStepToBuffer(MovementDependency* pStep) {
 
 void Actuators::setupHardware() {
     Wire.begin();
+
     pwmDriver.begin();
-    pwmDriver.setOscillatorFrequency(25e6);
+    pwmDriver.setOscillatorFrequency(27000000);
     pwmDriver.setPWMFreq(50);
 
     pinMode(GRB_DIR, OUTPUT);
@@ -109,11 +109,12 @@ void Actuators::setupHardware() {
     grbDriver.begin();
     grbDriver.rms_current(900);
     grbDriver.pwm_autoscale(true);
-    grbDriver.microsteps(16);
-    grbDriver.en_spreadCycle();
+    grbDriver.microsteps(1);
 
-    grbStepper.setMaxSpeed(100 * STEPS_PER_MM);
-    grbStepper.setAcceleration(75 * STEPS_PER_MM);
+    grbStepper.setEnablePin(GRB_EN);
+    grbStepper.setPinsInverted(false, false, true);
+    grbStepper.setMaxSpeed(3500);
+    grbStepper.setAcceleration(5000);
     grbStepper.enableOutputs();
 
     grbStepper.setCurrentPosition(0);
@@ -123,15 +124,22 @@ void Actuators::setupHardware() {
 
     sucDriver.begin();
     sucDriver.rms_current(900);
+    sucDriver.microsteps(1);
     sucDriver.pwm_autoscale(true);
-    sucDriver.microsteps(16);
-    sucDriver.en_spreadCycle();
 
-    sucStepper.setMaxSpeed(100 * STEPS_PER_MM);
-    sucStepper.setAcceleration(75 * STEPS_PER_MM);
+    sucStepper.setEnablePin(SC_EN);
+    sucStepper.setPinsInverted(false, false, true);
+    sucStepper.setMaxSpeed(3500);
+    sucStepper.setAcceleration(5000);
     sucStepper.enableOutputs();
 
     sucStepper.setCurrentPosition(0);
+
+    Timer1.initialize(100);
+    Timer1.attachInterrupt([]() {
+        grbStepper.run();
+        sucStepper.run();
+    });
 }
 
 void Actuators::setupMovements() {
@@ -156,17 +164,17 @@ void Actuators::setupMovements() {
             setServoAngle(GRB_MAGNET_L_PIN, GRB_MAGNET_RELEASE_ANGLE_L);
             setServoAngle(GRB_MAGNET_R_PIN, GRB_MAGNET_RELEASE_ANGLE_R);
         },
-        1000,
+        500,
         magnetDetachDeps,
         1
     );
 
     movements[ARM_DEPLOY] = new TimedMovement(
         []() {
-            grbStepper.moveTo(GRB_CATCH_ANGLE_L * STEPS_PER_MM);
-            sucStepper.moveTo(GRB_CATCH_ANGLE_R * STEPS_PER_MM);
+            setServoAngle(GRB_ARM_L_PIN, GRB_ARM_DEP_ANGLE_L);
+            setServoAngle(GRB_ARM_R_PIN, GRB_ARM_DEP_ANGLE_R);
         },
-        1000,
+        500,
         nullptr,
         0
     );
@@ -176,8 +184,12 @@ void Actuators::setupMovements() {
     };
     movements[ARM_RETRACT] = new TimedMovement(
         []() {
-            grbStepper.moveTo(GRB_RELEASE_ANGLE_L * STEPS_PER_MM);
-            sucStepper.moveTo(GRB_RELEASE_ANGLE_R * STEPS_PER_MM);
+            warn("Retracting...");
+            delay(1000);
+            setServoAngle(GRB_ARM_L_PIN, GRB_ARM_RET_ANGLE_L);
+            delay(1000);
+            setServoAngle(GRB_ARM_R_PIN, GRB_ARM_RET_ANGLE_R);
+            warn("Retracted");
         },
         1000,
         armRetractDeps,
@@ -186,8 +198,8 @@ void Actuators::setupMovements() {
 
     movements[GRABBER_CATCH] = new TimedMovement(
         []() {
-            grbStepper.moveTo(GRB_CATCH_ANGLE_L * STEPS_PER_MM);
-            sucStepper.moveTo(GRB_CATCH_ANGLE_R * STEPS_PER_MM);
+            setServoAngle(GRB_L_PIN, GRB_CATCH_ANGLE_L);
+            setServoAngle(GRB_R_PIN, GRB_CATCH_ANGLE_R);
         },
         1000,
         nullptr,
@@ -196,8 +208,8 @@ void Actuators::setupMovements() {
 
     movements[GRABBER_RELEASE] = new TimedMovement(
         []() {
-            grbStepper.moveTo(GRB_RELEASE_ANGLE_L * STEPS_PER_MM);
-            sucStepper.moveTo(GRB_RELEASE_ANGLE_R * STEPS_PER_MM);
+            setServoAngle(GRB_L_PIN, GRB_RELEASE_ANGLE_L);
+            setServoAngle(GRB_R_PIN, GRB_RELEASE_ANGLE_R);
         },
         1000,
         nullptr,
@@ -206,7 +218,7 @@ void Actuators::setupMovements() {
 
     movements[SUCTION_DEPLOY] = new TimedMovement(
         []() {
-            sucStepper.moveTo(GRB_CATCH_ANGLE_R * STEPS_PER_MM);
+            // TODO
         },
         1000,
         nullptr,
@@ -218,7 +230,7 @@ void Actuators::setupMovements() {
     };
     movements[SUCTION_RETRACT] = new TimedMovement(
         []() {
-            sucStepper.moveTo(GRB_RELEASE_ANGLE_R * STEPS_PER_MM);
+            // TODO
         },
         1000,
         sucRetractDeps,
@@ -272,10 +284,10 @@ void Actuators::setupMovements() {
 
     movements[SUCTION_BLOCK_UP] = new TriggeredMovement(
         []() {
-            
+            sucStepper.moveTo(SC_UP_HEIGHT * STEPS_PER_MM);
         },
         [](void* pX) {
-            return grbStepper.distanceToGo() == 0;
+            return sucStepper.distanceToGo() == 0;
         },
         2000,
         nullptr,
@@ -284,10 +296,10 @@ void Actuators::setupMovements() {
 
     movements[SUCTION_BLOCK_DOWN] = new TriggeredMovement(
         []() {
-            grbStepper.moveTo(0);
+            sucStepper.moveTo(0);
         },
         [](void* pX) {
-            return grbStepper.distanceToGo() == 0;
+            return sucStepper.distanceToGo() == 0;
         },
         2000,
         nullptr,
@@ -296,7 +308,7 @@ void Actuators::setupMovements() {
 
     movements[BANNER_RELEASE] = new TimedMovement(
         []() {
-            setServoAngle(BANNER_PIN, BANNER_DEP_ANGLE);
+            //setServoAngle(BANNER_PIN, BANNER_DEP_ANGLE);
         },
         1000,
         nullptr,
@@ -305,7 +317,7 @@ void Actuators::setupMovements() {
 
     movements[BANNER_CATCH] = new TimedMovement(
         []() {
-            setServoAngle(BANNER_PIN, BANNER_RET_ANGLE);
+            //setServoAngle(BANNER_PIN, BANNER_RET_ANGLE);
         },
         1000,
         nullptr,
@@ -438,14 +450,14 @@ void Actuators::setupActions() {
     actions[BANNER_DEPLOY] = new Action(bannerSteps, sizeof(bannerSteps) / sizeof(MovementDependency));
 
     static MovementDependency s1Steps[] = {
-        {GRABBER_BLOCK_DOWN, ActuatorStatus::MOVING},
-        {SUCTION_BLOCK_DOWN, ActuatorStatus::SET},
+        {SUCTION_BLOCK_DOWN, ActuatorStatus::MOVING},
+        {GRABBER_BLOCK_DOWN, ActuatorStatus::SET},
     };
     actions[S1] = new Action(s1Steps, sizeof(s1Steps) / sizeof(MovementDependency));
 
     static MovementDependency s2Steps[] = {
-        {GRABBER_BLOCK_UP, ActuatorStatus::MOVING},
-        {SUCTION_BLOCK_UP, ActuatorStatus::SET},
+        {SUCTION_BLOCK_UP, ActuatorStatus::MOVING},
+        {GRABBER_BLOCK_UP, ActuatorStatus::SET},
     };
     actions[S2] = new Action(s2Steps, sizeof(s2Steps) / sizeof(MovementDependency));
 
@@ -456,7 +468,7 @@ void Actuators::setupActions() {
 }
 
 void Actuators::setServoAngle(byte pin, byte angle) {
-    pwmDriver.writeMicroseconds(pin, map(angle, 0, 180, 1000, 2000));
+    pwmDriver.writeMicroseconds(pin, map(angle, 0, 180, 400, 2850));
 }
 
 Actuator* Actuators::getActuatorFromMovement(MovementName movement) {

@@ -10,6 +10,8 @@ byte Auto::stepCount = 0;
 RemoteData* Auto::emulatedData = nullptr;
 bool Auto::isRunning = true;
 
+byte Auto::lastRunMode = POSITIONS; // cuz the run mode state is resetting at the end of the main loop
+
 void Auto::setup() {
     resetData();
 }
@@ -146,7 +148,8 @@ void Auto::execGameStart() {
 void Auto::fetchData(RemoteData& dataBuffer) {
     emulatedData = &dataBuffer;
 
-    if (GlobalState::runMode->hasChanged()) {
+    if (lastRunMode != GlobalState::runMode->get()) {
+        lastRunMode = GlobalState::runMode->get();
         resetData();
         execMode();
     }

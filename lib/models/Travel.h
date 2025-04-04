@@ -1,9 +1,9 @@
 #pragma once
 
 struct Travel {
-    byte forward;
-    byte lateral;
-    byte yaw;
+    int8_t forward;
+    int8_t lateral;
+    int8_t yaw;
 
     bool operator==(const Travel& other) const {
         return forward == other.forward && lateral == other.lateral && yaw == other.yaw;

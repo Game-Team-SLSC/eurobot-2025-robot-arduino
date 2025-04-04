@@ -2,6 +2,7 @@
 
 TM1637Display ScoreDisplay::display(SCORE_DP_CLK, SCORE_DP_DIO);
 bool ScoreDisplay::isOn = true;
+EveryTimer* ScoreDisplay::timer = nullptr;
 
 void ScoreDisplay::setup() {
     display.setBrightness(7);
@@ -14,20 +15,31 @@ void ScoreDisplay::update() {
         display.showNumberDec(GlobalState::score->get());
     }
 
-    if (GlobalState::remoteConnected->hasChanged() && !GlobalState::remoteConnected->get()) {
-        isOn = false;
-        info("Blinking score display");
-        Timing::every(
-            BLINK_INTERVAL,
-            +[](void* _) -> bool{
-                isOn = !isOn;
-                return true;
-            });
+    if (GlobalState::remoteConnected->hasChanged()) {
+        if (!GlobalState::remoteConnected->get()) {
+
+            isOn = false;
+            info("Blinking score display");
+            timer = Timing::every(
+                BLINK_INTERVAL,
+                +[](void* _) -> bool{
+                    ScoreDisplay::isOn = !ScoreDisplay::isOn;
+                    return true;
+                });
+        } else if (timer != nullptr) {
+            isOn = true;
+
+            info("Stopping blinking score display");
+            Timing::cancelTimer(timer);
+            timer = nullptr;
+        }
     }
 
     if (isOn) {
-        display.setBrightness(7);
+        display.setBrightness(7, true);
+        display.showNumberDec(GlobalState::score->get());
     } else {
-        display.setBrightness(0);
+        display.setBrightness(7, false);
+        display.showNumberDec(GlobalState::score->get());
     }
 }

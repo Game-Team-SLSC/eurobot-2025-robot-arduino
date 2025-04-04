@@ -40,6 +40,8 @@ bool Remote::fetch(RemoteData& dataBuffer) {
         return false;
     };
 
+    GlobalState::remoteConnected->set(true);
+
     if (timeoutTimer != nullptr) {
         Timing::cancelTimer(timeoutTimer);
         timeoutTimer = nullptr;

@@ -10,9 +10,12 @@
 #include <Actuators.h>
 #include <Auto.h>
 #include <Arduino.h>
+#include <LCD.h>
 
 RemoteData remoteData;
 RemoteData emulatedData;
+
+long lastMillis;
 
 void setup() {
     loggerSetup();
@@ -25,6 +28,9 @@ void setup() {
     Remote::setup();
     #endif
 
+    info("LCD setup...");
+    LCD::setup();
+
     info("Score display setup...");
     ScoreDisplay::setup();
     
@@ -36,6 +42,9 @@ void setup() {
     Actuators::setup();
  
     info("Robot ready !");
+    LCD::display("Robot ready !");
+    
+    lastMillis = millis();
 }
 
 void preRun() {
@@ -68,6 +77,7 @@ void heartbeat() {
     Movers::update();
     ScoreDisplay::update();
     Actuators::update();
+    LCD::update();
 }
 
 void loop() {

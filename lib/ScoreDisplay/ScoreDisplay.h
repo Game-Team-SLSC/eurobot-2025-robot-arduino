@@ -16,5 +16,6 @@ class ScoreDisplay {
 
     static byte shownScore;
     static bool isOn;
+    static EveryTimer* timer;
     static TM1637Display display;
 };
