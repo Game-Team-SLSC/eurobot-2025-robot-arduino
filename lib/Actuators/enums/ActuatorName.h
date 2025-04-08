@@ -6,8 +6,7 @@ enum ActuatorName {
     GRABBER,
     SUCTION,
     BANNER,
-    GRB_BLOCK,
-    SUC_BLOCK,
+    PLATFORM,
     PUMP,
     
     __ACTUATOR_COUNT

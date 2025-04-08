@@ -37,8 +37,8 @@ void setup() {
     info("Movers setup...");
     Movers::setup();
     
-    info("Actuators setup in 2 seconds. Put the robot in its initial position.");
-    delay(2000);
+    info("Actuators setup in 1 second. Put the robot in its initial position.");
+    delay(1000);
     Actuators::setup();
  
     info("Robot ready !");

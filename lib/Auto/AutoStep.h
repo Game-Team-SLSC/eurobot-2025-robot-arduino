@@ -22,8 +22,7 @@ struct AutoStep {
 };
 
 struct TriggeredAutoStep: public AutoStep {
-    bool (*checker)(void*);
-    WhenTimer* checkerTask = nullptr;
+    bool (*checker)();
 
     const byte getType() const override {
         return AutoStepType::TRIGGERED_STEP;
@@ -31,7 +30,7 @@ struct TriggeredAutoStep: public AutoStep {
 
     ~TriggeredAutoStep() = default;
     TriggeredAutoStep() = default;
-    TriggeredAutoStep(void(*callback)(void), bool (*checker)(void*)) :
+    TriggeredAutoStep(void(*callback)(void), bool (*checker)()) :
         AutoStep(callback),
         checker(checker)
     {}
@@ -40,7 +39,7 @@ struct TriggeredAutoStep: public AutoStep {
 struct TimedAutoStep: public AutoStep
 {
     unsigned long duration;
-    InTimer* timer = nullptr;
+    unsigned long startTime;
 
     const byte getType() const override {
         return AutoStepType::TIMED_STEP;
@@ -50,6 +49,7 @@ struct TimedAutoStep: public AutoStep
     TimedAutoStep() = default;
     TimedAutoStep(void(*callback)(void), unsigned long duration) :
         AutoStep(callback),
-        duration(duration)
+        duration(duration),
+        startTime(0)
     {}
 };

@@ -43,19 +43,33 @@ void Movers::update() {
 
     float speedFactor = GlobalState::speedFactor->get();
 
+    // warn travel
+
     int8_t frw = travel.forward * Y_MOVE_FACTOR * speedFactor;
     int8_t lat = travel.lateral * X_MOVE_FACTOR * speedFactor;
     int8_t yaw = travel.yaw * YAW_FACTOR * speedFactor;
+    
+    //error("Travel infos %d, %d, %d", frw, lat, yaw);
 
     int16_t flUnconstrained = - frw - yaw - lat;
     int16_t frUnconstrained = - frw + yaw + lat;
-    int16_t rlUnconstrained = frw + yaw - lat;
-    int16_t rrUnconstrained = frw - yaw + lat;
+    int16_t rlUnconstrained = - frw - yaw + lat;
+    int16_t rrUnconstrained = - frw + yaw - lat;
 
-    lastFL = constrain(lerp(lastFL, flUnconstrained, MOVERS_RAMPING), -127, 127);
-    lastFR = constrain(lerp(lastFR, frUnconstrained, MOVERS_RAMPING), -127, 127);
-    lastRL = constrain(lerp(lastRL, rlUnconstrained, MOVERS_RAMPING), -127, 127);
-    lastRR = constrain(lerp(lastRR, rrUnconstrained, MOVERS_RAMPING), -127, 127);
+    int16_t maxUnconstrained = max(max(abs(flUnconstrained), abs(frUnconstrained)), max(abs(rlUnconstrained), abs(rrUnconstrained)));
+
+    // map them to fit in a -127/127 range
+    if (maxUnconstrained > 127) {
+        flUnconstrained = flUnconstrained * 127 / maxUnconstrained;
+        frUnconstrained = frUnconstrained * 127 / maxUnconstrained;
+        rlUnconstrained = rlUnconstrained * 127 / maxUnconstrained;
+        rrUnconstrained = rrUnconstrained * 127 / maxUnconstrained;
+    }
+
+    lastFL = lerp(lastFL, flUnconstrained, MOVERS_RAMPING);
+    lastFR = lerp(lastFR, frUnconstrained, MOVERS_RAMPING);
+    lastRL = lerp(lastRL, rlUnconstrained, MOVERS_RAMPING);
+    lastRR = lerp(lastRR, rrUnconstrained, MOVERS_RAMPING);
 
     leftSB.motor(MOVER_FL, lastFL);
     leftSB.motor(MOVER_RL, lastRL);

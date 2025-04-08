@@ -2,13 +2,13 @@
 #include <GlobalSettings.h>
 #include <GlobalState.h>
 #include <Wire.h>
-#include <TimerOne.h>
 
-TMC2209Stepper Actuators::grbDriver = TMC2209Stepper(&GRB_SERIAL, R_SENSE, 0b00);
-TMC2209Stepper Actuators::sucDriver = TMC2209Stepper(&SC_SERIAL, R_SENSE, 0b00);
+TMC2209Stepper Actuators::driverL = TMC2209Stepper(&PT_SERIAL_L, R_SENSE, 0b00);
+TMC2209Stepper Actuators::driverR = TMC2209Stepper(&PT_SERIAL_R, R_SENSE, 0b00);
 Adafruit_PWMServoDriver Actuators::pwmDriver = Adafruit_PWMServoDriver(0x40);
-AccelStepper Actuators::grbStepper = AccelStepper(AccelStepper::DRIVER, GRB_STEP, GRB_DIR);
-AccelStepper Actuators::sucStepper = AccelStepper(AccelStepper::DRIVER, SC_STEP, SC_DIR);
+AccelStepper Actuators::stepperL = AccelStepper(AccelStepper::DRIVER, PT_STEP_L, PT_DIR_L);
+AccelStepper Actuators::stepperR = AccelStepper(AccelStepper::DRIVER, PT_STEP_R, PT_DIR_R);
+MultiStepper Actuators::steppers = MultiStepper();
 VL53L0X Actuators::distanceSensor = VL53L0X();
 
 Movement* Actuators::movements[__MOV_COUNT] = {};
@@ -53,6 +53,8 @@ void Actuators::startAction() {
     for (byte i = 0; i < action->stepCount; i++) {
         addStepToBuffer(&action->steps[i]);
     }
+
+    warn("Did start action");
 }
 
 void Actuators::updateAction() {
@@ -64,20 +66,37 @@ void Actuators::updateAction() {
         }
         
         MovementDependency* pStep = stepsBuffer[0];
+        Movement* pMovement = movements[pStep->movement];
         Actuator* pActuator = getActuatorFromMovement(pStep->movement);
 
         if (pActuator->targetMovement != pStep->movement || pActuator->status == ActuatorStatus::IDLE) {
             execStep(pStep);
         }
 
+        if (pMovement->getType() == TRIGGERED) {
+            TriggeredMovement* pTriggeredMovement = static_cast<TriggeredMovement*>(pMovement);
+            if (pTriggeredMovement->checker() || (millis() - pTriggeredMovement->startTime) >= pTriggeredMovement->timeout) {
+                pActuator->status = SET;
+            }
+        } else {
+            TimedMovement* pTimedMovement = static_cast<TimedMovement*>(pMovement);
+            if (millis() - pTimedMovement->startTime >= pTimedMovement->duration) {
+                pActuator->status = SET;
+            }
+        }
+
         if (pStep->desiredStatus == MOVING || pActuator->status == pStep->desiredStatus) {
-            for (byte i = 0; i < stepsCount - 1; i++) {
+            stepsCount--;
+
+            pActuator->status = SET; // TODO: Add an update buffer but for now, we assume the actuator is set if we re just waiting for moving 
+
+            for (byte i = 0; i < stepsCount; i++) {
                 stepsBuffer[i] = stepsBuffer[i + 1];
             }
 
-            stepsBuffer[stepsCount - 1] = nullptr;
-    
-            stepsCount--;
+
+            stepsBuffer[stepsCount] = nullptr;
+
         } else return;
     }
 }
@@ -103,43 +122,44 @@ void Actuators::setupHardware() {
     pwmDriver.setOscillatorFrequency(27000000);
     pwmDriver.setPWMFreq(50);
 
-    pinMode(GRB_DIR, OUTPUT);
-    pinMode(GRB_STEP, OUTPUT);
+    pinMode(PT_DIR_L, OUTPUT);
+    pinMode(PT_STEP_L, OUTPUT);
 
-    grbDriver.begin();
-    grbDriver.rms_current(900);
-    grbDriver.pwm_autoscale(true);
-    grbDriver.microsteps(1);
+    driverL.begin();
+    driverL.rms_current(900);
+    driverL.pwm_autoscale(true);
+    driverL.microsteps(1);
 
-    grbStepper.setEnablePin(GRB_EN);
-    grbStepper.setPinsInverted(false, false, true);
-    grbStepper.setMaxSpeed(3500);
-    grbStepper.setAcceleration(5000);
-    grbStepper.enableOutputs();
+    pinMode(PT_EN_L, OUTPUT);
+    digitalWrite(PT_EN_L, LOW);
+    stepperL.setPinsInverted(false, false, true);
+    stepperL.setMaxSpeed(10000);
+    stepperL.setAcceleration(20000);
+    stepperL.enableOutputs();
 
-    grbStepper.setCurrentPosition(0);
+    stepperL.setCurrentPosition(0);
     
-    pinMode(SC_DIR, OUTPUT);
-    pinMode(SC_STEP, OUTPUT);
+    pinMode(PT_DIR_R, OUTPUT);
+    pinMode(PT_STEP_R, OUTPUT);
 
-    sucDriver.begin();
-    sucDriver.rms_current(900);
-    sucDriver.microsteps(1);
-    sucDriver.pwm_autoscale(true);
+    driverR.begin();
+    driverR.rms_current(900);
+    driverR.microsteps(1);
+    driverR.pwm_autoscale(true);
 
-    sucStepper.setEnablePin(SC_EN);
-    sucStepper.setPinsInverted(false, false, true);
-    sucStepper.setMaxSpeed(3500);
-    sucStepper.setAcceleration(5000);
-    sucStepper.enableOutputs();
+    pinMode(PT_EN_R, OUTPUT);
+    digitalWrite(PT_EN_R, LOW);
+    stepperR.setPinsInverted(false, false, true);
+    stepperR.setMaxSpeed(10000);
+    stepperR.setAcceleration(20000);
+    stepperR.enableOutputs();
+    
+    stepperR.setCurrentPosition(0);
 
-    sucStepper.setCurrentPosition(0);
+    steppers.addStepper(stepperL);
+    steppers.addStepper(stepperR);
 
-    Timer1.initialize(100);
-    Timer1.attachInterrupt([]() {
-        grbStepper.run();
-        sucStepper.run();
-    });
+    //distanceSensor.startContinuous();
 }
 
 void Actuators::setupMovements() {
@@ -151,7 +171,7 @@ void Actuators::setupMovements() {
             setServoAngle(GRB_MAGNET_L_PIN, GRB_MAGNET_ATTACH_ANGLE_L);
             setServoAngle(GRB_MAGNET_R_PIN, GRB_MAGNET_ATTACH_ANGLE_R);
         },
-        1000,
+        500,
         magnetAttachDeps,
         1
     );
@@ -184,16 +204,12 @@ void Actuators::setupMovements() {
     };
     movements[ARM_RETRACT] = new TimedMovement(
         []() {
-            warn("Retracting...");
-            delay(1000);
             setServoAngle(GRB_ARM_L_PIN, GRB_ARM_RET_ANGLE_L);
-            delay(1000);
             setServoAngle(GRB_ARM_R_PIN, GRB_ARM_RET_ANGLE_R);
-            warn("Retracted");
         },
-        1000,
+        500,
         armRetractDeps,
-        1
+        2
     );
 
     movements[GRABBER_CATCH] = new TimedMovement(
@@ -201,7 +217,7 @@ void Actuators::setupMovements() {
             setServoAngle(GRB_L_PIN, GRB_CATCH_ANGLE_L);
             setServoAngle(GRB_R_PIN, GRB_CATCH_ANGLE_R);
         },
-        1000,
+        500,
         nullptr,
         0
     );
@@ -216,7 +232,16 @@ void Actuators::setupMovements() {
         0
     );
 
-    movements[SUCTION_DEPLOY] = new TimedMovement(
+    movements[SUCTION_APPLY] = new TimedMovement(
+        []() {
+            // TODO
+        },
+        1000,
+        nullptr,
+        0
+    );
+
+    movements[SUCTION_LIFT] = new TimedMovement(
         []() {
             // TODO
         },
@@ -236,25 +261,41 @@ void Actuators::setupMovements() {
         sucRetractDeps,
         1
     );
-
-    movements[GRABBER_BLOCK_UP] = new TriggeredMovement(
+    movements[PLATFORM_UP] = new TriggeredMovement(
         []() {
-            grbStepper.moveTo(GRB_UP_HEIGHT * STEPS_PER_MM);
+            long pos[2];
+            pos[0] = PLATFROM_HEIGHT * STEPS_PER_MM;
+            pos[1] = -PLATFROM_HEIGHT * STEPS_PER_MM;
+            
+            stepperL.moveTo(pos[0]);
+            stepperR.moveTo(pos[1]);
+
+            while (stepperL.distanceToGo() != 0 || stepperR.distanceToGo() != 0) {
+                stepperL.run();
+                stepperR.run(); 
+            }
         },
-        [](void* pX) {
-            return grbStepper.distanceToGo() == 0;
+        []() {
+            return true;
         },
         2000,
         nullptr,
         0
     );
 
-    movements[GRABBER_BLOCK_DOWN] = new TriggeredMovement(
+    movements[PLATFORM_DOWN] = new TriggeredMovement(
         []() {
-            grbStepper.moveTo(0);
+            long pos[2];
+            pos[0] = 0;
+            pos[1] = 0;
+            
+            stepperL.moveTo(pos[0]);
+            stepperR.moveTo(pos[1]);
+
+            steppers.runSpeedToPosition();
         },
-        [](void* pX) {
-            return grbStepper.distanceToGo() == 0;
+        []() {
+            return true;
         },
         2000,
         nullptr,
@@ -262,49 +303,8 @@ void Actuators::setupMovements() {
     );
 
     static MovementDependency sucBlockApplyDeps[] = {
-        {SUCTION_DEPLOY, ActuatorStatus::SET}  
+        {SUCTION_APPLY, ActuatorStatus::SET}  
     };
-
-    movements[SUCTION_BLOCK_APPLY] = new TriggeredMovement(
-        []() {
-            distanceSensor.startContinuous();
-            sucStepper.moveTo(0);
-        },
-        [](void* pX) {
-            bool isApplying = distanceSensor.readRangeContinuousMillimeters() <= 40;
-            if (isApplying) {
-                distanceSensor.stopContinuous();
-            }
-            return isApplying || sucStepper.distanceToGo() == 0;
-        },
-        2000,
-        sucBlockApplyDeps,
-        1
-    );
-
-    movements[SUCTION_BLOCK_UP] = new TriggeredMovement(
-        []() {
-            sucStepper.moveTo(SC_UP_HEIGHT * STEPS_PER_MM);
-        },
-        [](void* pX) {
-            return sucStepper.distanceToGo() == 0;
-        },
-        2000,
-        nullptr,
-        0
-    );
-
-    movements[SUCTION_BLOCK_DOWN] = new TriggeredMovement(
-        []() {
-            sucStepper.moveTo(0);
-        },
-        [](void* pX) {
-            return sucStepper.distanceToGo() == 0;
-        },
-        2000,
-        nullptr,
-        0
-    );
 
     movements[BANNER_RELEASE] = new TimedMovement(
         []() {
@@ -363,23 +363,17 @@ void Actuators::setupActuators() {
     actuators[GRABBER] = new Actuator(grabberMoves, sizeof(grabberMoves) / sizeof(MovementName));
 
     static MovementName suctionMoves[] = {
-        SUCTION_DEPLOY,
+        SUCTION_APPLY,
+        SUCTION_LIFT,
         SUCTION_RETRACT
     };
     actuators[SUCTION] = new Actuator(suctionMoves, sizeof(suctionMoves) / sizeof(MovementName));
 
-    static MovementName grbBlockMoves[] = {
-        GRABBER_BLOCK_UP,
-        GRABBER_BLOCK_DOWN
+    static MovementName platfromMoves[] = {
+        PLATFORM_UP,
+        PLATFORM_DOWN
     };
-    actuators[GRB_BLOCK] = new Actuator(grbBlockMoves, sizeof(grbBlockMoves) / sizeof(MovementName));
-
-    static MovementName sucBlockMoves[] = {
-        SUCTION_BLOCK_APPLY,
-        SUCTION_BLOCK_UP,
-        SUCTION_BLOCK_DOWN
-    };
-    actuators[SUC_BLOCK] = new Actuator(sucBlockMoves, sizeof(sucBlockMoves) / sizeof(MovementName));
+    actuators[PLATFORM] = new Actuator(platfromMoves, sizeof(platfromMoves) / sizeof(MovementName));
 
     static MovementName bannerMoves[] = {
         BANNER_RELEASE,
@@ -397,11 +391,10 @@ void Actuators::setupActuators() {
 void Actuators::setupActions() {
     static MovementDependency foldSteps[] = {
         {BANNER_CATCH, ActuatorStatus::MOVING},
+        {PLATFORM_UP, ActuatorStatus::SET},
         {ARM_RETRACT, ActuatorStatus::MOVING},
         {GRABBER_CATCH, ActuatorStatus::MOVING},
-        {GRABBER_BLOCK_DOWN, ActuatorStatus::MOVING},
         {SUCTION_RETRACT, ActuatorStatus::MOVING},
-        {SUCTION_BLOCK_UP, ActuatorStatus::SET},
     };
     actions[FOLD] = new Action(foldSteps, sizeof(foldSteps) / sizeof(MovementDependency));
 
@@ -409,8 +402,8 @@ void Actuators::setupActions() {
         {ARM_DEPLOY, ActuatorStatus::MOVING},
         {MAGNET_ATTACH, ActuatorStatus::MOVING},
         {GRABBER_RELEASE, ActuatorStatus::MOVING},
-        {SUCTION_DEPLOY, ActuatorStatus::MOVING},
-        {GRABBER_BLOCK_DOWN, ActuatorStatus::SET},
+        {SUCTION_RETRACT, ActuatorStatus::MOVING},
+        {PLATFORM_DOWN, ActuatorStatus::SET},
     };
     actions[APPROACH] = new Action(approachSteps, sizeof(approachSteps) / sizeof(MovementDependency));
 
@@ -418,7 +411,7 @@ void Actuators::setupActions() {
         {ARM_DEPLOY, ActuatorStatus::MOVING},
         {MAGNET_ATTACH, ActuatorStatus::MOVING},
         {GRABBER_CATCH, ActuatorStatus::MOVING},
-        {SUCTION_BLOCK_APPLY, ActuatorStatus::SET},
+        {SUCTION_APPLY, ActuatorStatus::SET},
     };
     actions[TRANSPORT] = new Action(transportSteps, sizeof(transportSteps) / sizeof(MovementDependency));
 
@@ -431,13 +424,12 @@ void Actuators::setupActions() {
     static MovementDependency extractStageSteps[] = {
         // Secure catch
         {GRABBER_CATCH, ActuatorStatus::MOVING},
-        {SUCTION_BLOCK_APPLY, ActuatorStatus::SET},
-        {GRABBER_CATCH, ActuatorStatus::SET},
-
+        {SUCTION_APPLY, ActuatorStatus::SET},
+        
         // Extraction
         {ARM_RETRACT, ActuatorStatus::MOVING},
         {PUMP_ENABLE, ActuatorStatus::SET},
-        {SUCTION_BLOCK_UP, ActuatorStatus::MOVING},
+        {SUCTION_LIFT, ActuatorStatus::MOVING},
 
         // Release
         {GRABBER_RELEASE, ActuatorStatus::SET},
@@ -450,14 +442,12 @@ void Actuators::setupActions() {
     actions[BANNER_DEPLOY] = new Action(bannerSteps, sizeof(bannerSteps) / sizeof(MovementDependency));
 
     static MovementDependency s1Steps[] = {
-        {SUCTION_BLOCK_DOWN, ActuatorStatus::MOVING},
-        {GRABBER_BLOCK_DOWN, ActuatorStatus::SET},
+        {PLATFORM_DOWN, ActuatorStatus::SET},
     };
     actions[S1] = new Action(s1Steps, sizeof(s1Steps) / sizeof(MovementDependency));
 
     static MovementDependency s2Steps[] = {
-        {SUCTION_BLOCK_UP, ActuatorStatus::MOVING},
-        {GRABBER_BLOCK_UP, ActuatorStatus::SET},
+        {PLATFORM_UP, ActuatorStatus::SET},
     };
     actions[S2] = new Action(s2Steps, sizeof(s2Steps) / sizeof(MovementDependency));
 
@@ -491,64 +481,7 @@ void Actuators::execStep(MovementDependency* pStep) {
     info("Executing action step %d", pStep->movement);
 
     pActuator->targetMovement = pStep->movement;
-
-    for (byte i = 0; i < pActuator->moveCount; i++) {
-        Movement* pActMove = movements[pActuator->moves[i]];
-
-        // triggered movements need to be canceled, otherwise, they will stop new movement from old one
-        if (pActMove->getType() == MovementType::TRIGGERED) {
-            TriggeredMovement* pTimedActMove = static_cast<TriggeredMovement*>(pActMove);
-
-            if (pTimedActMove->timeoutTimer != nullptr) {
-                Timing::cancelTimer(pTimedActMove->timeoutTimer);
-                pTimedActMove->timeoutTimer = nullptr;
-            }
-
-            if (pTimedActMove->checkerTask != nullptr) {
-                Timing::cancelTimer(pTimedActMove->checkerTask);
-                pTimedActMove->checkerTask = nullptr;
-            }
-        }
-    }
-
-    if (pMovement->getType() == MovementType::TIMED) {
-        TimedMovement* timedMovement = static_cast<TimedMovement*>(pMovement);
-        
-        if (timedMovement->timer != nullptr) {
-            Timing::cancelTimer(timedMovement->timer);
-            timedMovement->timer = nullptr;
-        }
-
-        timedMovement->timer = Timing::in(timedMovement->duration, [](void* pActuator) {
-            Actuator& actuator = *static_cast<Actuator*>(pActuator);
-            
-            actuator.status = ActuatorStatus::SET;
-        }, pActuator);
-    } else {
-        TriggeredMovement* triggeredMovement = static_cast<TriggeredMovement*>(pMovement);
-        
-        if (triggeredMovement->timeoutTimer != nullptr) {
-            Timing::cancelTimer(triggeredMovement->timeoutTimer);
-            triggeredMovement->timeoutTimer = nullptr;
-        }
-
-        triggeredMovement->timeoutTimer = Timing::in(triggeredMovement->timeout, [](void* pActuator) {
-            Actuator& actuator = *static_cast<Actuator*>(pActuator);
-            
-            actuator.status = ActuatorStatus::SET;
-        }, pActuator);
-
-        if (triggeredMovement->checkerTask != nullptr) {
-            Timing::cancelTimer(triggeredMovement->checkerTask);
-            triggeredMovement->checkerTask = nullptr;
-        }
-
-        triggeredMovement->checkerTask = Timing::when(triggeredMovement->checker, [](void* pActuator) {
-            Actuator& actuator = *static_cast<Actuator*>(pActuator);
-            
-            actuator.status = ActuatorStatus::SET;
-        }, pActuator, nullptr);
-    }
+    pMovement->startTime = millis();
 
     pActuator->status = ActuatorStatus::MOVING;
     pMovement->callback();

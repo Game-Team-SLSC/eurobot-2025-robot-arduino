@@ -41,17 +41,17 @@
 
 // STEPPERS
 
-#define GRB_UP_HEIGHT 120 //mm
-#define GRB_DIR 26
-#define GRB_STEP 27
-#define GRB_EN 28
-#define GRB_SERIAL Serial1
+#define PLATFROM_HEIGHT 120 //mm
 
-#define SC_UP_HEIGHT 120 //mm
-#define SC_DIR 30
-#define SC_STEP 31
-#define SC_EN 32
-#define SC_SERIAL Serial2
+#define PT_DIR_L 26
+#define PT_STEP_L 27
+#define PT_EN_L 28
+#define PT_SERIAL_L Serial1
+
+#define PT_DIR_R 30
+#define PT_STEP_R 31
+#define PT_EN_R 32
+#define PT_SERIAL_R Serial2
 
 #define R_SENSE 0.11f
 #define STEPS_PER_MM 60
@@ -73,13 +73,13 @@
 #define X_MOVE_FACTOR 0.8f
 #define Y_MOVE_FACTOR 1.f
 
-#define SBR_L 5
-#define SBR_R 46
+#define SBR_L 46
+#define SBR_R 5
 
 #define MOVER_RL 2
 #define MOVER_FL 1
-#define MOVER_RR 1
-#define MOVER_FR 2
+#define MOVER_RR 2
+#define MOVER_FR 1
 
 #define APPROACH_SPEED_FACTOR 0.3
 
@@ -89,27 +89,27 @@
 
 #define GRB_L_PIN 4
 #define GRB_RELEASE_ANGLE_L 90
-#define GRB_CATCH_ANGLE_L 100
+#define GRB_CATCH_ANGLE_L 105
 
 #define GRB_R_PIN 8
 #define GRB_RELEASE_ANGLE_R 88
-#define GRB_CATCH_ANGLE_R 78
+#define GRB_CATCH_ANGLE_R 73
 
 #define GRB_MAGNET_L_PIN 3
 #define GRB_MAGNET_ATTACH_ANGLE_L 90
 #define GRB_MAGNET_RELEASE_ANGLE_L 160
 
 #define GRB_MAGNET_R_PIN 15
-#define GRB_MAGNET_ATTACH_ANGLE_R 167
+#define GRB_MAGNET_ATTACH_ANGLE_R 170
 #define GRB_MAGNET_RELEASE_ANGLE_R 60
 
 #define GRB_ARM_L_PIN 0
-#define GRB_ARM_DEP_ANGLE_L 127
+#define GRB_ARM_DEP_ANGLE_L 122
 #define GRB_ARM_RET_ANGLE_L 170
 
 #define GRB_ARM_R_PIN 12
-#define GRB_ARM_DEP_ANGLE_R 63
-#define GRB_ARM_RET_ANGLE_R 0
+#define GRB_ARM_DEP_ANGLE_R 55
+#define GRB_ARM_RET_ANGLE_R 10
 
 #define SC_L_PIN 30
 #define SC_DEP_ANGLE_L 180
