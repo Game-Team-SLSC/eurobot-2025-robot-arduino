@@ -12,6 +12,7 @@
 #include "classes/Action.h"
 #include <ActionName.h>
 #include "enums/MovementName.h"
+#include "enums/ServoType.h"
 
 #define STEP_BUFFER_SIZE 30
 
@@ -37,7 +38,7 @@ class Actuators {
     static void execStep(MovementDependency* step);
     static void addStepToBuffer(MovementDependency* step);
 
-    static inline void setServoAngle(byte pin, byte angle);
+    static inline void setServoAngle(byte pin, short angle, ServoType servoType = MG996R);
 
     static Movement* movements[__MOV_COUNT];
     static Actuator* actuators[__ACTUATOR_COUNT];

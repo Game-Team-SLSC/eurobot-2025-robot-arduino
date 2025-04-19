@@ -3,6 +3,7 @@
 #include <GlobalState.h>
 #include <GlobalSettings.h>
 #include <Actuators.h>
+#include <Movers.h>
 
 AutoStep* Auto::stepsBuffer[MAX_STEPS];
 byte Auto::stepCount = 0;
@@ -47,6 +48,10 @@ void Auto::setJoysticks(int8_t x, int8_t y, int8_t z) {
     emulatedData->joystickLeft.x = 128 + x;
     emulatedData->joystickLeft.y = 128 + y;
     emulatedData->joystickRight.x = 128 + z;
+
+    if (x == 0 && y == 0 && z == 0) {
+        Movers::stop();
+    }
 }
 
 void Auto::exec2Stages() {
@@ -58,7 +63,7 @@ void Auto::exec2Stages() {
 
     stepsBuffer[stepCount++] = new TimedAutoStep([]() {
         setJoysticks(0, 30, 0);
-    }, 2000);
+    }, 800);
 
     stepsBuffer[stepCount++] = new TriggeredAutoStep([]() {
         setJoysticks(0, 0, 0);
@@ -69,21 +74,21 @@ void Auto::exec2Stages() {
 
     stepsBuffer[stepCount++] = new TimedAutoStep([]() {
         setJoysticks(0, -30, 0);
-    }, 2000);
+    }, 1000);
 
     stepsBuffer[stepCount++] = new TriggeredAutoStep([]() {
         setJoysticks(0, 0, 0);
         pressButton(RELEASE_BTN);
     }, []() {
-        return GlobalState::action->get() == ActionName::RELEASE && Actuators::isActionRunning() == false;
+        return GlobalState::action->get() == ActionName::RELEASE_STAGE && Actuators::isActionRunning() == false;
     });
 }
 
 void Auto::exec3Stages() {
     stepsBuffer[stepCount++] = new TriggeredAutoStep([]() {
-        pressButton(CATCH_2S_BTN);
+        pressButton(CATCH_BTN);
     }, []() {
-        return GlobalState::action->get() == ActionName::EXTRACT_STAGE && Actuators::isActionRunning() == false;
+        return GlobalState::action->get() == ActionName::CATCH && Actuators::isActionRunning() == false;
     });
 
     stepsBuffer[stepCount++] = new TriggeredAutoStep([]() {
@@ -91,57 +96,6 @@ void Auto::exec3Stages() {
     }, []() {
         return GlobalState::action->get() == ActionName::S2 && Actuators::isActionRunning() == false;
     });
-
-    stepsBuffer[stepCount++] = new TimedAutoStep([]() {
-        setJoysticks(0, 30, 0);
-    }, 2000);
-
-    stepsBuffer[stepCount++] = new TriggeredAutoStep([]() {
-        setJoysticks(0, 0, 0);
-        pressButton(RELEASE_BTN);
-    }, []() {
-        return GlobalState::action->get() == ActionName::RELEASE && Actuators::isActionRunning() == false;
-    });
-}
-
-void Auto::execGameStart() {
-    stepsBuffer[stepCount++] = new TriggeredAutoStep([]() {
-        pressButton(RELEASE_BANNER_BTN);
-    }, []() {
-        return GlobalState::action->get() == ActionName::BANNER_DEPLOY && Actuators::isActionRunning() == false;
-    });
-
-    stepsBuffer[stepCount++] = new TimedAutoStep([]() {
-        setJoysticks(0, 100, 0);
-    }, 2000);
-
-    stepsBuffer[stepCount++] = new TimedAutoStep([]() {
-        pressButton(APPROACH_BTN);
-        setJoysticks(0, 0, -70);
-    }, 1000);
-
-    stepsBuffer[stepCount++] = new TimedAutoStep([]() {
-        setJoysticks(GlobalState::isRightSide? -100: 100, 0, 0);
-    }, 2000);
-
-    stepsBuffer[stepCount++] = new TimedAutoStep([]() {
-        setJoysticks(0, 50, 0);
-    }, 3000);
-
-    stepsBuffer[stepCount++] = new TriggeredAutoStep([]() {
-        pressButton(TRANSPORT_BTN);
-        setJoysticks(0, 0, 0);
-    }, []() {
-        return GlobalState::action->get() == ActionName::TRANSPORT && Actuators::isActionRunning() == false;
-    });
-
-    stepsBuffer[stepCount++] = new TimedAutoStep([]() {
-        setJoysticks(0, 50, 0);
-    }, 1000);
-
-    stepsBuffer[stepCount++] = new TimedAutoStep([]() {
-        setJoysticks(0, 0, 0);
-    }, 0);
 }
 
 void Auto::fetchData(RemoteData& dataBuffer) {
@@ -205,9 +159,6 @@ void Auto::execMode() {
     isRunning = true;
     clearBuffer();
     switch (GlobalState::runMode->get()) {
-        case AUTO_GAME_START:
-            execGameStart();
-            break;
         case AUTO_2_STAGE:
             exec2Stages();
             break;

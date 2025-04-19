@@ -10,7 +10,7 @@ struct RemoteData
     JoystickData joystickRight;
 
     bool buttons[_BUTCOUNT] = {
-        false, false, false, false, false, false, false, false, false, false, false, false, false, false, false, false
+        false, false, false, false, false, false, false, false, false, false, false
     }; // for each button true if pressed
     byte slider = 255; // 0 to 255
     byte score = DEFAULT_SCORE; // 0 to 255

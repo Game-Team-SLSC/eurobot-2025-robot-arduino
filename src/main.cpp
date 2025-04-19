@@ -81,7 +81,6 @@ void heartbeat() {
 }
 
 void loop() {
-    delay(LOOP_DELAY);
     preRun();
     acquire();
     process();

@@ -8,6 +8,7 @@ enum MovementName {
     MAGNET_DETACH,
 
     ARM_DEPLOY,
+    ARM_RELEASE,
     ARM_RETRACT,
 
     GRABBER_CATCH,
@@ -18,6 +19,7 @@ enum MovementName {
     SUCTION_RETRACT,
 
     PLATFORM_UP,
+    PLATFORM_TRANS,
     PLATFORM_DOWN,
 
     BANNER_RELEASE,

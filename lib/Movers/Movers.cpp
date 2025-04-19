@@ -19,8 +19,21 @@ void Movers::setup() {
     rightSB.stop();
 };
 
-int8_t Movers::lerp(int8_t a, int8_t b, float t) {
-    return a + int8_t(t * (b - a));
+void Movers::stop() {
+    lastFL = 0;
+    lastFR = 0;
+    lastRL = 0;
+    lastRR = 0;
+    leftSB.stop();
+    rightSB.stop();
+}
+
+int8_t Movers::lerp(float a, float b, float t) {
+    // Calculate intermediate result as float to preserve decimal precision
+    float intermediate = a + t * (b - a);
+    // Round to nearest integer before casting to int8_t
+    int8_t result = int8_t(round(intermediate));
+    return result;
 }
 
 void Movers::update() {
@@ -33,13 +46,6 @@ void Movers::update() {
     }
     
     Travel travel = GlobalState::travel->get();
-
-    if (travel == stopTravel) {
-        info("Stopping movers");
-        leftSB.stop();
-        rightSB.stop();
-        return;
-    }
 
     float speedFactor = GlobalState::speedFactor->get();
 
@@ -70,6 +76,10 @@ void Movers::update() {
     lastFR = lerp(lastFR, frUnconstrained, MOVERS_RAMPING);
     lastRL = lerp(lastRL, rlUnconstrained, MOVERS_RAMPING);
     lastRR = lerp(lastRR, rrUnconstrained, MOVERS_RAMPING);
+
+    // warn("Speedfactor : %d travel : %d unconFL : %d last FL : %d", speedFactor > 0.5f, travel.forward, flUnconstrained, lastFL);
+
+    // warn("lerp : %d, %d, %d, %d" , lastFL, lastFR, lastRL, lastRR);
 
     leftSB.motor(MOVER_FL, lastFL);
     leftSB.motor(MOVER_RL, lastRL);
