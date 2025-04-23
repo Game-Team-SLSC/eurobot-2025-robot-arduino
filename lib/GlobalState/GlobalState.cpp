@@ -40,6 +40,8 @@ void GlobalState::update(RemoteData& remoteData, RemoteData& emulatedData) {
         speedFactor->set(APPROACH_SPEED_FACTOR * remoteData.slider / 255.f);
     } else if (action->get() == ActionName::S2) {
         speedFactor->set(S2_SPEED_FACTOR * remoteData.slider / 255.f);
+    } else if (action->get() == ActionName::TRANSPORT) {
+        speedFactor->set(TRANSPORT_SPEED_FACTOR * remoteData.slider / 255.f);
     } else {
         speedFactor->set(remoteData.slider / 255.f);
     }

@@ -66,9 +66,13 @@
 #define MOVERS_TIMEOUT 1000
 #define DEADZONE 3
 
-#define YAW_FACTOR 0.7f
+#define YAW_FACTOR 0.55f
 #define X_MOVE_FACTOR .8f
 #define Y_MOVE_FACTOR .8f
+
+#define APPROACH_SPEED_FACTOR 0.3f
+#define S2_SPEED_FACTOR 0.3f
+#define TRANSPORT_SPEED_FACTOR 0.6f
 
 #define SBR_L 46
 #define SBR_R 5
@@ -77,9 +81,6 @@
 #define MOVER_FL 1
 #define MOVER_RR 2
 #define MOVER_FR 1
-
-#define APPROACH_SPEED_FACTOR 0.3
-#define S2_SPEED_FACTOR 0.3
 
 // ACTUATORS
 
