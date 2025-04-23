@@ -1,0 +1,15 @@
+{
+	"folders": [
+		{
+			"path": ".."
+		}
+	],
+	"settings": {
+		"files.associations": {
+			"*.embeddedhtml": "html",
+			".env*": "dotenv",
+			"*.chm": "cpp",
+			"new": "cpp"
+		}
+	}
+}
