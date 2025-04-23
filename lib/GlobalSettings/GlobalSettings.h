@@ -24,39 +24,21 @@
 
 // RF24
 
-#define RF_CE 11
-#define RF_CS 12
-#define RF_MISO 50
-#define RF_MOSI 51
-#define RF_SCK 52
-#define RF_IRQ 2
+#define RF_CE A3
+#define RF_CS A2
 #define RF_TIMEOUT 1000
 #define RF_ADDRESS "CR912"
 #define RF_RETRY_DELAY 1000
 
-// STEPPERS
+// ESP 32
 
-#define PLATFROM_HEIGHT 160 //mm
-#define PLATFORM_TRANS_HEIGHT 30 //mm
-
-#define PT_DIR_L 26
-#define PT_STEP_L 27
-#define PT_EN_L 28
-#define PT_SERIAL_L Serial1
-
-#define PT_DIR_R 30
-#define PT_STEP_R 31
-#define PT_EN_R 32
-#define PT_SERIAL_R Serial2
-
-#define R_SENSE 0.11f
-#define STEPS_PER_MM 60
-#define ADDRESS 0b00
+#define ESP_SERIAL Serial1
+#define ESP_BAUD 9600
 
 // SCORE
 
 #define BLINK_INTERVAL 500
-#define DEFAULT_SCORE 70
+#define DEFAULT_SCORE 66
 #define SCORE_DP_DIO A0
 #define SCORE_DP_CLK A1
 
@@ -158,6 +140,6 @@ enum Buttons {
 
 // MISC
 
-#define STATUS_LED 13
+#define STATUS_LED LED_BUILTIN
 
 #define PUMP_RLY 48

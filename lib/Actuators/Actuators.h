@@ -1,8 +1,5 @@
 #pragma once
 
-#include <TMCStepper.h>
-#include <AccelStepper.h>
-#include <MultiStepper.h>
 #include <Adafruit_PWMServoDriver.h>
 #include <VL53L0X.h>
 
@@ -45,9 +42,6 @@ class Actuators {
     static Action* actions[__ACTION_COUNT];
 
     static Adafruit_PWMServoDriver pwmDriver;
-    static TMC2209Stepper driverL, driverR;
-    static AccelStepper stepperL, stepperR;
-    static MultiStepper steppers;
     static VL53L0X distanceSensor;
 
     static MovementDependency* stepsBuffer[STEP_BUFFER_SIZE];

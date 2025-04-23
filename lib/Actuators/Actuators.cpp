@@ -3,13 +3,9 @@
 #include <GlobalState.h>
 #include <Movers.h>
 #include <Wire.h>
+#include <PulleyPosition.h>
 
-TMC2209Stepper Actuators::driverL = TMC2209Stepper(&PT_SERIAL_L, R_SENSE, 0b00);
-TMC2209Stepper Actuators::driverR = TMC2209Stepper(&PT_SERIAL_R, R_SENSE, 0b00);
 Adafruit_PWMServoDriver Actuators::pwmDriver = Adafruit_PWMServoDriver(0x40);
-AccelStepper Actuators::stepperL = AccelStepper(AccelStepper::DRIVER, PT_STEP_L, PT_DIR_L);
-AccelStepper Actuators::stepperR = AccelStepper(AccelStepper::DRIVER, PT_STEP_R, PT_DIR_R);
-MultiStepper Actuators::steppers = MultiStepper();
 VL53L0X Actuators::distanceSensor = VL53L0X();
 
 Movement* Actuators::movements[__MOV_COUNT] = {};
@@ -122,44 +118,9 @@ void Actuators::setupHardware() {
     pwmDriver.setOscillatorFrequency(27000000);
     pwmDriver.setPWMFreq(50);
 
-    pinMode(PT_DIR_L, OUTPUT);
-    pinMode(PT_STEP_L, OUTPUT);
-
-    driverL.begin();
-    driverL.rms_current(900);
-    driverL.pwm_autoscale(true);
-    driverL.microsteps(16);
-    driverL.en_spreadCycle(true);
-
-    pinMode(PT_EN_L, OUTPUT);
-    stepperL.setMaxSpeed(60000);
-    stepperL.setAcceleration(15000);
-    stepperL.enableOutputs();
-
-    stepperL.setCurrentPosition(0);
-    
-    pinMode(PT_DIR_R, OUTPUT);
-    pinMode(PT_STEP_R, OUTPUT);
-
-    driverR.begin();
-    driverR.rms_current(900);
-    driverR.microsteps(16);
-    driverR.pwm_autoscale(true);
-    driverR.en_spreadCycle(true);
-
-    pinMode(PT_EN_R, OUTPUT);
-    stepperR.setMaxSpeed(60000);
-    stepperR.setAcceleration(15000);
-    stepperR.enableOutputs();
-    
-    stepperR.setCurrentPosition(0);
+    ESP_SERIAL.begin(ESP_BAUD);
 
     pinMode(PUMP_RLY, OUTPUT);
-
-    digitalWrite(PT_EN_L, false);
-    digitalWrite(PT_EN_R, false);
-
-    //distanceSensor.startContinuous();
 }
 
 void Actuators::setupMovements() {
@@ -266,25 +227,10 @@ void Actuators::setupMovements() {
     );
     movements[PLATFORM_UP] = new TriggeredMovement(
         []() {
-            long pos[2];
-            pos[0] = PLATFROM_HEIGHT * STEPS_PER_MM;
-            pos[1] = -PLATFROM_HEIGHT * STEPS_PER_MM;
-
-            digitalWrite(PT_EN_L, false);
-            digitalWrite(PT_EN_R, false);
-            
-            Movers::stop();
-            
-            stepperL.moveTo(pos[0]);
-            stepperR.moveTo(pos[1]);
-
-            while (stepperL.distanceToGo() != 0 || stepperR.distanceToGo() != 0) {
-                stepperL.run();
-                stepperR.run(); 
-            }
+            ESP_SERIAL.write(PulleyPosition::UP_POS);
         },
         []() {
-            return true;
+            return (ESP_SERIAL.available() && ESP_SERIAL.read() == PulleyPosition::UP_POS);
         },
         2000,
         nullptr,
@@ -293,25 +239,10 @@ void Actuators::setupMovements() {
 
     movements[PLATFORM_TRANS] = new TriggeredMovement(
         []() {
-            long pos[2];
-            pos[0] = PLATFORM_TRANS_HEIGHT * STEPS_PER_MM;
-            pos[1] = -PLATFORM_TRANS_HEIGHT * STEPS_PER_MM;;
-
-            digitalWrite(PT_EN_L, false);
-            digitalWrite(PT_EN_R, false);
-            
-            Movers::stop();
-            
-            stepperL.moveTo(pos[0]);
-            stepperR.moveTo(pos[1]);
-
-            while (stepperL.distanceToGo() != 0 || stepperR.distanceToGo() != 0) {
-                stepperL.run();
-                stepperR.run(); 
-            }
+            ESP_SERIAL.write(PulleyPosition::TRANS_POS);
         },
         []() {
-            return true;
+            return (ESP_SERIAL.available() && ESP_SERIAL.read() == PulleyPosition::TRANS_POS);
         },
         2000,
         nullptr,
@@ -320,26 +251,10 @@ void Actuators::setupMovements() {
 
     movements[PLATFORM_DOWN] = new TriggeredMovement(
         []() {
-            long pos[2];
-            pos[0] = 0;
-            pos[1] = 0;
-            
-            Movers::stop();
-            
-            stepperL.moveTo(pos[0]);
-            stepperR.moveTo(pos[1]);
-
-            while (stepperL.distanceToGo() != 0 || stepperR.distanceToGo() != 0) {
-                stepperL.run();
-                stepperR.run(); 
-            }
-            
-            
-            digitalWrite(PT_EN_L, true);
-            digitalWrite(PT_EN_R, true);
+            ESP_SERIAL.write(PulleyPosition::DOWN_POS);
         },
         []() {
-            return true;
+            return (ESP_SERIAL.available() && ESP_SERIAL.read() == PulleyPosition::DOWN_POS);
         },
         2000,
         nullptr,
