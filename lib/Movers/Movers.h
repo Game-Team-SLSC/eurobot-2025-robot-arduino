@@ -10,6 +10,7 @@ class Movers {
 
     static void setup();
     static void update();
+    static void stop();
 
     private:
 
@@ -18,7 +19,7 @@ class Movers {
     static int8_t lastRR;
     static int8_t lastRL;
 
-    static int8_t lerp(int8_t a, int8_t b, float t);
+    static int8_t lerp(float a, float b, float t);
 
     static SabertoothSimplified leftSB;
     static SabertoothSimplified rightSB;

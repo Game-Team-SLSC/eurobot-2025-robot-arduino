@@ -29,9 +29,8 @@ async
 bool Remote::fetch(RemoteData& dataBuffer) {
     if (!radio.available()) {
         if (timeoutTimer == nullptr) {
-            timeoutTimer = Timing::in(RF_TIMEOUT, +[](void* selfPtr) {
-                Remote* self = static_cast<Remote*>(selfPtr);
-                self->timeoutTimer = nullptr;
+            timeoutTimer = Timing::in(RF_TIMEOUT, +[](void* _) {
+                Remote::timeoutTimer = nullptr;
                 GlobalState::remoteConnected->set(false);
             GlobalState::remoteConnected->set(false);
         }, nullptr);

@@ -11,7 +11,6 @@ void ScoreDisplay::setup() {
 
 void ScoreDisplay::update() {
     if (GlobalState::score->hasChanged()) {
-        info("Update score display : %d", GlobalState::score->get());
         display.showNumberDec(GlobalState::score->get());
     }
 

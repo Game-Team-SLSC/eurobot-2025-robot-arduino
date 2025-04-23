@@ -1,7 +1,6 @@
 #pragma once
 
 #include <Arduino.h>
-#include <Timing.h>
 #include "../enums/ActuatorName.h"
 #include "MovementDependency.h"
 
@@ -14,19 +13,20 @@ struct Movement {
     void(*callback)();
     MovementDependency* dependencies;
     byte dependencyCount;
+    unsigned long startTime;
     
     const virtual byte getType() const = 0;
 
     Movement(void(*callback)(), MovementDependency* dependencies, byte dependencyCount):
     callback(callback),
     dependencies(dependencies),
-    dependencyCount(dependencyCount)
+    dependencyCount(dependencyCount),
+    startTime(0)
     {}
 };
 
 struct TimedMovement: public Movement {
     unsigned int duration;
-    InTimer* timer;
     
     const byte getType() const override {
         return MovementType::TIMED;
@@ -34,26 +34,21 @@ struct TimedMovement: public Movement {
     
     TimedMovement(void(*callback)(), unsigned int duration, MovementDependency* dependencies, byte dependencyCount):
     Movement(callback, dependencies, dependencyCount),
-    duration(duration),
-    timer(nullptr)
+    duration(duration)
     {}
 };
 
 struct TriggeredMovement: public Movement {
-    bool(*checker)(void*);
+    bool(*checker)();
     unsigned int timeout;
-    InTimer* timeoutTimer;
-    WhenTimer* checkerTask;
     
     const byte getType() const override {
         return MovementType::TRIGGERED;
     }
 
-    TriggeredMovement(void(*callback)(), bool(*checker)(void*), unsigned int timeout, MovementDependency* dependencies, byte dependencyCount):
+    TriggeredMovement(void(*callback)(), bool(*checker)(), unsigned int timeout, MovementDependency* dependencies, byte dependencyCount):
     Movement(callback, dependencies, dependencyCount),
     checker(checker),
-    timeout(timeout),
-    timeoutTimer(nullptr),
-    checkerTask(nullptr)
+    timeout(timeout)
     {}
 };

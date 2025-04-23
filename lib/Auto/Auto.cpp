@@ -2,8 +2,8 @@
 #include <Logger.h>
 #include <GlobalState.h>
 #include <GlobalSettings.h>
-#include <Timing.h>
 #include <Actuators.h>
+#include <Movers.h>
 
 AutoStep* Auto::stepsBuffer[MAX_STEPS];
 byte Auto::stepCount = 0;
@@ -48,101 +48,54 @@ void Auto::setJoysticks(int8_t x, int8_t y, int8_t z) {
     emulatedData->joystickLeft.x = 128 + x;
     emulatedData->joystickLeft.y = 128 + y;
     emulatedData->joystickRight.x = 128 + z;
+
+    if (x == 0 && y == 0 && z == 0) {
+        Movers::stop();
+    }
 }
 
 void Auto::exec2Stages() {
     stepsBuffer[stepCount++] = new TriggeredAutoStep([]() {
         pressButton(EXTRACT_STAGE_BTN);
-    }, [](void* _) {
+    }, []() {
         return GlobalState::action->get() == ActionName::EXTRACT_STAGE && Actuators::isActionRunning() == false;
     });
 
     stepsBuffer[stepCount++] = new TimedAutoStep([]() {
-        setJoysticks(0, -50, 0);
-    }, 2000);
+        setJoysticks(0, 30, 0);
+    }, 800);
 
     stepsBuffer[stepCount++] = new TriggeredAutoStep([]() {
         setJoysticks(0, 0, 0);
         pressButton(STAGE_2_BTN);
-    }, [](void* _) {
+    }, []() {
         return GlobalState::action->get() == ActionName::S2 && Actuators::isActionRunning() == false;
     });
 
     stepsBuffer[stepCount++] = new TimedAutoStep([]() {
-        setJoysticks(0, 30, 0);
-    }, 2000);
+        setJoysticks(0, -30, 0);
+    }, 1000);
 
     stepsBuffer[stepCount++] = new TriggeredAutoStep([]() {
         setJoysticks(0, 0, 0);
         pressButton(RELEASE_BTN);
-    }, [](void* _) {
-        return GlobalState::action->get() == ActionName::RELEASE && Actuators::isActionRunning() == false;
+    }, []() {
+        return GlobalState::action->get() == ActionName::RELEASE_STAGE && Actuators::isActionRunning() == false;
     });
 }
 
 void Auto::exec3Stages() {
     stepsBuffer[stepCount++] = new TriggeredAutoStep([]() {
-        pressButton(CATCH_2S_BTN);
-    }, [](void* _) {
-        return GlobalState::action->get() == ActionName::EXTRACT_STAGE && Actuators::isActionRunning() == false;
+        pressButton(CATCH_BTN);
+    }, []() {
+        return GlobalState::action->get() == ActionName::CATCH && Actuators::isActionRunning() == false;
     });
 
     stepsBuffer[stepCount++] = new TriggeredAutoStep([]() {
         pressButton(STAGE_2_BTN);
-    }, [](void* _) {
+    }, []() {
         return GlobalState::action->get() == ActionName::S2 && Actuators::isActionRunning() == false;
     });
-
-    stepsBuffer[stepCount++] = new TimedAutoStep([]() {
-        setJoysticks(0, 30, 0);
-    }, 2000);
-
-    stepsBuffer[stepCount++] = new TriggeredAutoStep([]() {
-        setJoysticks(0, 0, 0);
-        pressButton(RELEASE_BTN);
-    }, [](void* _) {
-        return GlobalState::action->get() == ActionName::RELEASE && Actuators::isActionRunning() == false;
-    });
-}
-
-void Auto::execGameStart() {
-    stepsBuffer[stepCount++] = new TriggeredAutoStep([]() {
-        pressButton(RELEASE_BANNER_BTN);
-    }, [](void* _) {
-        return GlobalState::action->get() == ActionName::BANNER_DEPLOY && Actuators::isActionRunning() == false;
-    });
-
-    stepsBuffer[stepCount++] = new TimedAutoStep([]() {
-        setJoysticks(0, 100, 0);
-    }, 2000);
-
-    stepsBuffer[stepCount++] = new TimedAutoStep([]() {
-        pressButton(APPROACH_BTN);
-        setJoysticks(0, 0, -70);
-    }, 1000);
-
-    stepsBuffer[stepCount++] = new TimedAutoStep([]() {
-        setJoysticks(GlobalState::isRightSide? -100: 100, 0, 0);
-    }, 2000);
-
-    stepsBuffer[stepCount++] = new TimedAutoStep([]() {
-        setJoysticks(0, 50, 0);
-    }, 3000);
-
-    stepsBuffer[stepCount++] = new TriggeredAutoStep([]() {
-        pressButton(TRANSPORT_BTN);
-        setJoysticks(0, 0, 0);
-    }, [](void* _) {
-        return GlobalState::action->get() == ActionName::TRANSPORT && Actuators::isActionRunning() == false;
-    });
-
-    stepsBuffer[stepCount++] = new TimedAutoStep([]() {
-        setJoysticks(0, 50, 0);
-    }, 1000);
-
-    stepsBuffer[stepCount++] = new TimedAutoStep([]() {
-        setJoysticks(0, 0, 0);
-    }, 0);
 }
 
 void Auto::fetchData(RemoteData& dataBuffer) {
@@ -172,6 +125,20 @@ void Auto::fetchData(RemoteData& dataBuffer) {
     if (!stepsBuffer[0]->wasCalled) {
         execStep();
     }
+
+    if (stepsBuffer[0]->getType() == TIMED_STEP) {
+        TimedAutoStep* pStep = static_cast<TimedAutoStep*>(stepsBuffer[0]);
+
+        if (millis() - pStep->startTime >= pStep->duration) {
+            stepsBuffer[0]->isFinished = true;
+        }
+    } else if (stepsBuffer[0]->getType() == TRIGGERED_STEP) {
+        TriggeredAutoStep* pStep = static_cast<TriggeredAutoStep*>(stepsBuffer[0]);
+
+        if (pStep->checker()) {
+            stepsBuffer[0]->isFinished = true;
+        }
+    }
     
     if (stepsBuffer[0]->isFinished) {
         delete stepsBuffer[0];
@@ -192,9 +159,6 @@ void Auto::execMode() {
     isRunning = true;
     clearBuffer();
     switch (GlobalState::runMode->get()) {
-        case AUTO_GAME_START:
-            execGameStart();
-            break;
         case AUTO_2_STAGE:
             exec2Stages();
             break;
@@ -210,22 +174,11 @@ void Auto::execStep() {
     info("Calling autostep. %d autosteps remaining", stepCount);
     stepsBuffer[0]->callback();
     stepsBuffer[0]->wasCalled = true;
+    stepsBuffer[0]->isFinished = false;
 
     if (stepsBuffer[0]->getType() == AutoStepType::TIMED_STEP) {
-        TimedAutoStep* step = static_cast<TimedAutoStep*>(stepsBuffer[0]);
+        TimedAutoStep* pStep = static_cast<TimedAutoStep*>(stepsBuffer[0]);
 
-        step->timer = Timing::in(step->duration, [](void* pStep) {
-            TimedAutoStep* step = static_cast<TimedAutoStep*>(pStep);
-
-            step->isFinished = true;
-        }, step, true);
-    } else {
-        TriggeredAutoStep* step = static_cast<TriggeredAutoStep*>(stepsBuffer[0]);
-
-        step->checkerTask = Timing::when(step->checker, [](void* pStep) {
-            TriggeredAutoStep* step = static_cast<TriggeredAutoStep*>(pStep);
-
-            step->isFinished = true;
-        }, step, step, true);
+        pStep->startTime = millis();
     }
 }

@@ -2,15 +2,20 @@
 
 enum ActionName {
     FOLD,
+
     APPROACH,
     TRANSPORT,
-    RELEASE,
+    
     EXTRACT_STAGE,
-    CATCH,
+    RELEASE_STAGE,
+
     S1,
     S2,
+
     BANNER_DEPLOY,
-    CATCH_2S,
+
+    CATCH,
+    RELEASE_3S,
 
     __ACTION_COUNT
 };

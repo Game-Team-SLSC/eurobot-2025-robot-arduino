@@ -1,7 +1,5 @@
 #pragma once
 
-#include <TMCStepper.h>
-#include <AccelStepper.h>
 #include <Adafruit_PWMServoDriver.h>
 #include <VL53L0X.h>
 
@@ -11,6 +9,7 @@
 #include "classes/Action.h"
 #include <ActionName.h>
 #include "enums/MovementName.h"
+#include "enums/ServoType.h"
 
 #define STEP_BUFFER_SIZE 30
 
@@ -36,15 +35,13 @@ class Actuators {
     static void execStep(MovementDependency* step);
     static void addStepToBuffer(MovementDependency* step);
 
-    static inline void setServoAngle(byte pin, byte angle);
+    static inline void setServoAngle(byte pin, short angle, ServoType servoType = MG996R);
 
     static Movement* movements[__MOV_COUNT];
     static Actuator* actuators[__ACTUATOR_COUNT];
     static Action* actions[__ACTION_COUNT];
 
     static Adafruit_PWMServoDriver pwmDriver;
-    static TMC2209Stepper grbDriver, sucDriver;
-    static AccelStepper grbStepper, sucStepper;
     static VL53L0X distanceSensor;
 
     static MovementDependency* stepsBuffer[STEP_BUFFER_SIZE];
