@@ -188,7 +188,7 @@ void Actuators::setupMovements() {
             setServoAngle(GRB_L_PIN, GRB_RELEASE_ANGLE_L);
             setServoAngle(GRB_R_PIN, GRB_RELEASE_ANGLE_R);
         },
-        1000,
+        500,
         nullptr,
         0
     );
@@ -198,7 +198,7 @@ void Actuators::setupMovements() {
             setServoAngle(SC_L_PIN, SC_DEP_ANGLE_L, SF20);
             setServoAngle(SC_R_PIN, SC_DEP_ANGLE_R, SF20);
         },
-        1000,
+        700,
         nullptr,
         0
     );
@@ -382,13 +382,13 @@ void Actuators::setupActions() {
 
     static MovementDependency extractStageSteps[] = {
         // Secure catch
+        {PLATFORM_DOWN, ActuatorStatus::SET},
         {PUMP_ENABLE, ActuatorStatus::MOVING},
         {GRABBER_CATCH, ActuatorStatus::MOVING},
         {SUCTION_APPLY, ActuatorStatus::SET},
         
         // Extraction
         {ARM_RETRACT, ActuatorStatus::MOVING},
-        {PUMP_ENABLE, ActuatorStatus::SET},
         {SUCTION_LIFT, ActuatorStatus::MOVING},
 
         // Release
