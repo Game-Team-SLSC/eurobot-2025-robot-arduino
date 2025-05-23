@@ -82,6 +82,17 @@ void Auto::exec2Stages() {
     }, []() {
         return GlobalState::action->get() == ActionName::RELEASE_STAGE && Actuators::isActionRunning() == false;
     });
+
+    stepsBuffer[stepCount++] = new TimedAutoStep([]() {
+        setJoysticks(0, 30, 0);
+    }, 1000);
+
+    stepsBuffer[stepCount++] = new TriggeredAutoStep([]() {
+        setJoysticks(0, 0, 0);
+        pressButton(APPROACH_BTN);
+    }, []() {
+        return GlobalState::action->get() == ActionName::RELEASE_STAGE && Actuators::isActionRunning() == false;
+    });
 }
 
 void Auto::exec3Stages() {

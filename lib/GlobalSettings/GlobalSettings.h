@@ -49,15 +49,15 @@
 #define DEADZONE 3
 
 #define YAW_FACTOR 0.55f
-#define X_MOVE_FACTOR .8f
+#define X_MOVE_FACTOR .6f
 #define Y_MOVE_FACTOR .8f
 
-#define APPROACH_SPEED_FACTOR 0.3f
+#define APPROACH_SPEED_FACTOR 0.4f
 #define S2_SPEED_FACTOR 0.3f
 #define TRANSPORT_SPEED_FACTOR 0.6f
 
 #define SBR_L 46
-#define SBR_R 5
+#define SBR_R 45
 
 #define MOVER_RL 2
 #define MOVER_FL 1
@@ -106,7 +106,7 @@
 
 #define BANNER_PIN 11
 #define BANNER_DEP_ANGLE 150
-#define BANNER_RET_ANGLE 80
+#define BANNER_RET_ANGLE 75
 
 // BUTTONS CONFIG
 
