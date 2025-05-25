@@ -4,7 +4,7 @@
 
 //#define MOCK_REMOTE
 
-//#define LOG_STATE
+#define LOG_STATE
 
 #ifdef LOG_STATE
 
@@ -27,7 +27,6 @@
 #define RF_CE A3
 #define RF_CS A2
 #define RF_TIMEOUT 1000
-#define RF_ADDRESS "CR912"
 #define RF_RETRY_DELAY 1000
 
 // ESP 32
@@ -54,7 +53,7 @@
 
 #define APPROACH_SPEED_FACTOR 0.4f
 #define S2_SPEED_FACTOR 0.3f
-#define TRANSPORT_SPEED_FACTOR 0.6f
+#define TRANSPORT_SPEED_FACTOR 0.9f
 
 #define SBR_L 46
 #define SBR_R 45

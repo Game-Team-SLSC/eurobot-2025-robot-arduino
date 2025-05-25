@@ -74,7 +74,7 @@ void Auto::exec2Stages() {
 
     stepsBuffer[stepCount++] = new TimedAutoStep([]() {
         setJoysticks(0, -30, 0);
-    }, 1000);
+    }, 900);
 
     stepsBuffer[stepCount++] = new TriggeredAutoStep([]() {
         setJoysticks(0, 0, 0);
@@ -130,6 +130,10 @@ void Auto::fetchData(RemoteData& dataBuffer) {
                 execMode();
             } else GlobalState::runMode->set(POSITIONS);
         }
+        return;
+    }
+
+    if (!GlobalState::remoteConnected->get()) {
         return;
     }
 

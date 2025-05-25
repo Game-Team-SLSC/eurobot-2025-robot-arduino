@@ -1,8 +1,9 @@
 #include <Remote.h>
-
+#include <GlobalSettings.h>
+#include <SecretSettings.h>
 
 RF24 Remote::radio(RF_CE, RF_CS);
-BaseTimer* Remote::timeoutTimer(nullptr);
+unsigned long long Remote::lastReceiveTime = 0;
 
 // yields
 void Remote::setup() {
@@ -13,7 +14,7 @@ void Remote::setup() {
     radio.openReadingPipe(1, (const byte*)RF_ADDRESS);
     radio.setPALevel(RF24_PA_LOW);
     radio.setDataRate(RF24_250KBPS);
-    radio.setChannel(110);
+    radio.setChannel(RADIO_CHANNEL);
 
     radio.startListening();
 
@@ -24,28 +25,18 @@ void Remote::setup() {
 
 /*
 @returns Weither the data was available
-async
 */
 bool Remote::fetch(RemoteData& dataBuffer) {
     if (!radio.available()) {
-        if (timeoutTimer == nullptr) {
-            timeoutTimer = Timing::in(RF_TIMEOUT, +[](void* _) {
-                Remote::timeoutTimer = nullptr;
-                GlobalState::remoteConnected->set(false);
+        if ((millis() - lastReceiveTime) >= RF_TIMEOUT) {
             GlobalState::remoteConnected->set(false);
-        }, nullptr);
-    }
-
+        }   
         return false;
-    };
+    }
 
     GlobalState::remoteConnected->set(true);
 
-    if (timeoutTimer != nullptr) {
-        Timing::cancelTimer(timeoutTimer);
-        timeoutTimer = nullptr;
-    }
-
+    lastReceiveTime = millis();
     radio.read(&dataBuffer, sizeof(dataBuffer));
 
     return true;

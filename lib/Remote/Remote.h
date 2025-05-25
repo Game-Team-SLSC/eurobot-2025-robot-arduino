@@ -12,7 +12,7 @@ class Remote {
     private:
 
     static RF24 radio;
-    static BaseTimer* timeoutTimer;
+    static unsigned long long lastReceiveTime;
     
     public:
     

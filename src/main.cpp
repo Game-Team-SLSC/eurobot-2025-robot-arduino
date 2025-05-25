@@ -19,29 +19,29 @@ long lastMillis;
 
 void setup() {
     loggerSetup();
-    info("Powered up !");
+    warn("Powered up !");
 
     #ifdef MOCK_REMOTE
     warn("MOCK_REMOTE is enabled. Remote data will be emulated.");
     #else
-    info("Radio setup...");
+    warn("Radio setup...");
     Remote::setup();
     #endif
 
-    info("LCD setup...");
+    warn("LCD setup...");
     LCD::setup();
 
-    info("Score display setup...");
+    warn("Score display setup...");
     ScoreDisplay::setup();
     
-    info("Movers setup...");
+    warn("Movers setup...");
     Movers::setup();
     
-    info("Actuators setup in 1 second. Put the robot in its initial position.");
+    warn("Actuators setup in 1 second. Put the robot in its initial position.");
     delay(1000);
     Actuators::setup();
  
-    info("Robot ready !");
+    warn("Robot ready !");
     LCD::display("Robot ready !");
     
     lastMillis = millis();
