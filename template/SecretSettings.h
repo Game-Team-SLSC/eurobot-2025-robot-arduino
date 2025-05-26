@@ -1,4 +1,4 @@
-// Put this file in the src directory of your project to define secret settings.
+// Put this file in the lib directory of your project to define secret settings.
 // The project won't compile without this file.
 
 #pragma once
