@@ -10,7 +10,7 @@ byte Auto::stepCount = 0;
 RemoteData* Auto::emulatedData = nullptr;
 bool Auto::isRunning = true;
 
-byte Auto::lastRunMode = POSITIONS; // cuz the run mode state is resetting at the end of the main loop
+byte Auto::lastRunMode = MANUAL; // cuz the run mode state is resetting at the end of the main loop
 
 void Auto::setup() {
     resetData();
@@ -62,8 +62,8 @@ void Auto::exec2Stages() {
     });
 
     stepsBuffer[stepCount++] = new TimedAutoStep([]() {
-        setJoysticks(0, 30, 0);
-    }, 800);
+        setJoysticks(0, 60, 0);
+    }, 400);
 
     stepsBuffer[stepCount++] = new TriggeredAutoStep([]() {
         setJoysticks(0, 0, 0);
@@ -73,8 +73,8 @@ void Auto::exec2Stages() {
     });
 
     stepsBuffer[stepCount++] = new TimedAutoStep([]() {
-        setJoysticks(0, -30, 0);
-    }, 900);
+        setJoysticks(0, -60, 0);
+    }, 400);
 
     stepsBuffer[stepCount++] = new TriggeredAutoStep([]() {
         setJoysticks(0, 0, 0);
@@ -84,8 +84,8 @@ void Auto::exec2Stages() {
     });
 
     stepsBuffer[stepCount++] = new TimedAutoStep([]() {
-        setJoysticks(0, 30, 0);
-    }, 1000);
+        setJoysticks(0, 60, 0);
+    }, 550);
 
     stepsBuffer[stepCount++] = new TriggeredAutoStep([]() {
         setJoysticks(0, 0, 0);
@@ -109,6 +109,25 @@ void Auto::exec3Stages() {
     });
 }
 
+void Auto::execRelease3Stages() {
+    stepsBuffer[stepCount++] = new TriggeredAutoStep([]() {
+        pressButton(RELEASE_3S_BTN);
+    }, []() {
+        return GlobalState::action->get() == ActionName::RELEASE_3S && Actuators::isActionRunning() == false;
+    });
+
+    stepsBuffer[stepCount++] = new TimedAutoStep([]() {
+        setJoysticks(0, 50, 0);
+    }, 600);
+
+    stepsBuffer[stepCount++] = new TriggeredAutoStep([]() {
+        setJoysticks(0, 0, 0);
+        pressButton(FOLD_BTN);
+    }, []() {
+        return GlobalState::action->get() == ActionName::FOLD && Actuators::isActionRunning() == false;
+    });
+}
+
 void Auto::fetchData(RemoteData& dataBuffer) {
     emulatedData = &dataBuffer;
 
@@ -124,11 +143,7 @@ void Auto::fetchData(RemoteData& dataBuffer) {
             isRunning = false;
             info("Automode %d finished !", GlobalState::runMode->get());
 
-            if (GlobalState::runMode->get() == AUTO_GAME_START) {
-                GlobalState::runMode->set(AUTO_2_STAGE);
-                resetData();
-                execMode();
-            } else GlobalState::runMode->set(POSITIONS);
+            GlobalState::runMode->set(MANUAL);
         }
         return;
     }
@@ -179,6 +194,9 @@ void Auto::execMode() {
             break;
         case AUTO_3_STAGE:
             exec3Stages();
+            break;
+        case AUTO_RELEASE_3_STAGE:
+            execRelease3Stages();
             break;
         default:
             break;

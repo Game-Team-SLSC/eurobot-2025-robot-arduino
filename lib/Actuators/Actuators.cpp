@@ -208,7 +208,7 @@ void Actuators::setupMovements() {
             setServoAngle(SC_L_PIN, SC_LIFT_ANGLE_L, SF20);
             setServoAngle(SC_R_PIN, SC_LIFT_ANGLE_R, SF20);
         },
-        1000,
+        200,
         nullptr,
         0
     );
@@ -291,7 +291,7 @@ void Actuators::setupMovements() {
         []() {
             digitalWrite(PUMP_RLY, LOW);
         },
-        500,
+        400,
         nullptr,
         0
     );
@@ -363,6 +363,7 @@ void Actuators::setupActions() {
     actions[APPROACH] = new Action(approachSteps, sizeof(approachSteps) / sizeof(MovementDependency));
 
     static MovementDependency transportSteps[] = {
+        {BANNER_CATCH, ActuatorStatus::MOVING},
         {ARM_DEPLOY, ActuatorStatus::MOVING},
         {MAGNET_ATTACH, ActuatorStatus::MOVING},
         {GRABBER_CATCH, ActuatorStatus::MOVING},
@@ -379,6 +380,11 @@ void Actuators::setupActions() {
         {GRABBER_RELEASE, ActuatorStatus::SET}
     };
     actions[RELEASE_STAGE] = new Action(releaseSteps, sizeof(releaseSteps) / sizeof(MovementDependency));
+
+    static MovementDependency release3SSteps[] = {
+        {GRABBER_RELEASE, ActuatorStatus::SET}
+    };
+    actions[RELEASE_3S] = new Action(release3SSteps, sizeof(release3SSteps) / sizeof(MovementDependency));
 
     static MovementDependency extractStageSteps[] = {
         // Secure catch

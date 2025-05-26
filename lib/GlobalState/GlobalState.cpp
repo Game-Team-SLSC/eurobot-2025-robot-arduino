@@ -6,16 +6,16 @@ DynamicState<byte>* GlobalState::score = createState(byte(DEFAULT_SCORE));
 DynamicState<Travel>* GlobalState::travel = createState(Travel{0, 0, 0});
 DynamicState<float>* GlobalState::speedFactor = createState(1.f);
 DynamicState<bool>* GlobalState::remoteConnected = createState(false);
-DynamicState<RunMode>* GlobalState::runMode = createState(POSITIONS);
+DynamicState<RunMode>* GlobalState::runMode = createState(MANUAL);
 
 void GlobalState::update(RemoteData& remoteData, RemoteData& emulatedData) {
-    if (runMode->get() != POSITIONS) {
+    if (runMode->get() != MANUAL) {
         for (byte i = 0; i < _BUTCOUNT; i++) {
             if (i == STAGES_2_AUTO_BTN || i == STAGES_3_AUTO_BTN) continue;
             
             if (remoteData.buttons[i]) {
                 warn("Back to positions");
-                runMode->set(POSITIONS);
+                runMode->set(MANUAL);
                 return;
             }
         }
@@ -24,6 +24,7 @@ void GlobalState::update(RemoteData& remoteData, RemoteData& emulatedData) {
     runMode->set(
         remoteData.buttons[STAGES_2_AUTO_BTN] ? AUTO_2_STAGE :
         remoteData.buttons[STAGES_3_AUTO_BTN] ? AUTO_3_STAGE :
+        remoteData.buttons[RELEASE_3S_AUTO_BTN] ? AUTO_RELEASE_3_STAGE :
         runMode->get());
 
     if (runMode->hasChanged()) {
@@ -32,9 +33,9 @@ void GlobalState::update(RemoteData& remoteData, RemoteData& emulatedData) {
 
     score->set(remoteData.score);
 
-    updateRaw(runMode->get() == POSITIONS? remoteData: emulatedData);
+    updateRaw(runMode->get() == MANUAL? remoteData: emulatedData);
 
-    if (runMode->get() != RunMode::POSITIONS) {
+    if (runMode->get() != RunMode::MANUAL) {
         speedFactor->set(1.f);
     } else if (action->get() == ActionName::APPROACH) {
         speedFactor->set(APPROACH_SPEED_FACTOR * remoteData.slider / 255.f);
@@ -70,6 +71,7 @@ void GlobalState::updateRaw(RemoteData& data) {
         data.buttons[STAGE_2_BTN]? ActionName::S2:
         data.buttons[FOLD_BTN]? ActionName::FOLD:
         data.buttons[RELEASE_BANNER_BTN]? ActionName::BANNER_DEPLOY:
+        data.buttons[RELEASE_3S_BTN]? ActionName::RELEASE_3S:
         action->get()
     );
 

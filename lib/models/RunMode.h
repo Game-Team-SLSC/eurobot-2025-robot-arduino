@@ -1,9 +1,9 @@
 #pragma once
 
 enum RunMode {
-    //MANUAL, TODO
-    POSITIONS,
+    MANUAL,
+
     AUTO_2_STAGE,
     AUTO_3_STAGE,
-    AUTO_GAME_START
+    AUTO_RELEASE_3_STAGE
 };

@@ -29,4 +29,5 @@ class Auto {
 
     static void exec2Stages();
     static void exec3Stages();
+    static void execRelease3Stages();
 };

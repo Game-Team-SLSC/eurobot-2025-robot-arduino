@@ -4,7 +4,7 @@
 
 //#define MOCK_REMOTE
 
-#define LOG_STATE
+//#define LOG_STATE
 
 #ifdef LOG_STATE
 
@@ -110,28 +110,40 @@
 // BUTTONS CONFIG
 
 enum Buttons {
-    // Left side
+    // Left side (left)
     EXTRACT_STAGE_BTN,
+
+    // Left side (up)
     STAGES_2_AUTO_BTN,
+
+    // Left side (down)
     STAGES_3_AUTO_BTN,
+
+    // Left side (right)
     APPROACH_BTN,
 
-    // Right side (down)
+    // Right side (left)
     TRANSPORT_BTN,
+
+    // Right side (down)
     RELEASE_BTN,
 
-    // RB button
+    // Double (down)
     STAGE_1_BTN,
 
-    // Right side (up)
+    // Right side (right)
     RELEASE_BANNER_BTN,
+
+    // Right side (up)
     FOLD_BTN,
     
-    // Up and down
-    STAGE_2_BTN,
+    // Double (up)
+    RELEASE_3S_AUTO_BTN,
     
-    // Secondary actions
+    // Meta
     CATCH_BTN,
+    STAGE_2_BTN,
+    RELEASE_3S_BTN,
     
     _BUTCOUNT
 };
