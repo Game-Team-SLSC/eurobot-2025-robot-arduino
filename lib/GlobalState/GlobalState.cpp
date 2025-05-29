@@ -62,16 +62,23 @@ void GlobalState::updateRaw(RemoteData& data) {
     //warn("Travel infos %d, %d, %d", travel->get().forward, travel->get().lateral, travel->get().yaw);
 
     action->set(
+        data.buttons[FOLD_BTN]? ActionName::FOLD:
+
         data.buttons[APPROACH_BTN]? ActionName::APPROACH:
         data.buttons[TRANSPORT_BTN]? ActionName::TRANSPORT:
-        data.buttons[RELEASE_BTN]? ActionName::RELEASE_STAGE:
-        data.buttons[EXTRACT_STAGE_BTN]? ActionName::EXTRACT_STAGE:
         data.buttons[CATCH_BTN]? ActionName::CATCH:
+
+        data.buttons[EXTRACT_STAGE_BTN]? ActionName::EXTRACT_STAGE:
+        data.buttons[PRE_RELEASE_BTN] ? ActionName::PRERELEASE_STAGE:
+        data.buttons[RELEASE_STAGE_BTN]? ActionName::RELEASE_STAGE:
+        data.buttons[RELEASE_UP_STAGE_BTN]? ActionName::RELEASE_UP_STAGE:
+        data.buttons[RELEASE_GRABBER_BTN]? ActionName::RELEASE_GRABBER:
+        
         data.buttons[STAGE_1_BTN]? ActionName::S1:
         data.buttons[STAGE_2_BTN]? ActionName::S2:
-        data.buttons[FOLD_BTN]? ActionName::FOLD:
+
         data.buttons[RELEASE_BANNER_BTN]? ActionName::BANNER_DEPLOY:
-        data.buttons[RELEASE_3S_BTN]? ActionName::RELEASE_3S:
+        
         action->get()
     );
 

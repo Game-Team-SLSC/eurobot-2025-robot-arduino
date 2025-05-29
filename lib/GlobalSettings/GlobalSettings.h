@@ -4,7 +4,7 @@
 
 //#define MOCK_REMOTE
 
-//#define LOG_STATE
+#define LOG_STATE
 
 #ifdef LOG_STATE
 
@@ -126,7 +126,7 @@ enum Buttons {
     TRANSPORT_BTN,
 
     // Right side (down)
-    RELEASE_BTN,
+    RELEASE_STAGE_BTN,
 
     // Double (down)
     STAGE_1_BTN,
@@ -142,9 +142,12 @@ enum Buttons {
     
     // Meta
     CATCH_BTN,
+    PRE_RELEASE_BTN,
     STAGE_2_BTN,
-    RELEASE_3S_BTN,
+    RELEASE_GRABBER_BTN,
+    RELEASE_UP_STAGE_BTN,
     
+    // Metadata
     _BUTCOUNT
 };
 

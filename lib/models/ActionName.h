@@ -5,17 +5,18 @@ enum ActionName {
 
     APPROACH,
     TRANSPORT,
+    CATCH,
     
     EXTRACT_STAGE,
+    PRERELEASE_STAGE,
     RELEASE_STAGE,
+    RELEASE_UP_STAGE,
+    RELEASE_GRABBER,
 
     S1,
     S2,
 
     BANNER_DEPLOY,
-
-    CATCH,
-    RELEASE_3S,
 
     __ACTION_COUNT
 };

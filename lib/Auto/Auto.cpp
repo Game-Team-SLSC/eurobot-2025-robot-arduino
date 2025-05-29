@@ -62,8 +62,8 @@ void Auto::exec2Stages() {
     });
 
     stepsBuffer[stepCount++] = new TimedAutoStep([]() {
-        setJoysticks(0, 60, 0);
-    }, 400);
+        setJoysticks(0, 50, 0);
+    }, 430);
 
     stepsBuffer[stepCount++] = new TriggeredAutoStep([]() {
         setJoysticks(0, 0, 0);
@@ -73,25 +73,33 @@ void Auto::exec2Stages() {
     });
 
     stepsBuffer[stepCount++] = new TimedAutoStep([]() {
-        setJoysticks(0, -60, 0);
-    }, 400);
+        pressButton(PRE_RELEASE_BTN);
+        setJoysticks(0, -50, 5);
+    }, 625);
+
+    stepsBuffer[stepCount++] = new TimedAutoStep([]() {
+        setJoysticks(0, 0, 0);
+    }, 50);
 
     stepsBuffer[stepCount++] = new TriggeredAutoStep([]() {
-        setJoysticks(0, 0, 0);
-        pressButton(RELEASE_BTN);
+        pressButton(RELEASE_UP_STAGE_BTN);
     }, []() {
-        return GlobalState::action->get() == ActionName::RELEASE_STAGE && Actuators::isActionRunning() == false;
+        return GlobalState::action->get() == ActionName::RELEASE_UP_STAGE && Actuators::isActionRunning() == false;
     });
 
     stepsBuffer[stepCount++] = new TimedAutoStep([]() {
-        setJoysticks(0, 60, 0);
-    }, 550);
+        
+    }, 300);
+
+    stepsBuffer[stepCount++] = new TimedAutoStep([]() {
+        setJoysticks(0, 50, 0);
+    }, 600);
 
     stepsBuffer[stepCount++] = new TriggeredAutoStep([]() {
         setJoysticks(0, 0, 0);
         pressButton(APPROACH_BTN);
     }, []() {
-        return GlobalState::action->get() == ActionName::RELEASE_STAGE && Actuators::isActionRunning() == false;
+        return true;
     });
 }
 
@@ -111,9 +119,9 @@ void Auto::exec3Stages() {
 
 void Auto::execRelease3Stages() {
     stepsBuffer[stepCount++] = new TriggeredAutoStep([]() {
-        pressButton(RELEASE_3S_BTN);
+        pressButton(RELEASE_GRABBER_BTN);
     }, []() {
-        return GlobalState::action->get() == ActionName::RELEASE_3S && Actuators::isActionRunning() == false;
+        return GlobalState::action->get() == ActionName::RELEASE_GRABBER && Actuators::isActionRunning() == false;
     });
 
     stepsBuffer[stepCount++] = new TimedAutoStep([]() {
@@ -124,7 +132,7 @@ void Auto::execRelease3Stages() {
         setJoysticks(0, 0, 0);
         pressButton(FOLD_BTN);
     }, []() {
-        return GlobalState::action->get() == ActionName::FOLD && Actuators::isActionRunning() == false;
+        return true;
     });
 }
 

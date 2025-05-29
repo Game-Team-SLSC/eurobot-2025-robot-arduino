@@ -178,7 +178,7 @@ void Actuators::setupMovements() {
             setServoAngle(GRB_L_PIN, GRB_CATCH_ANGLE_L);
             setServoAngle(GRB_R_PIN, GRB_CATCH_ANGLE_R);
         },
-        750,
+        75,
         nullptr,
         0
     );
@@ -291,7 +291,7 @@ void Actuators::setupMovements() {
         []() {
             digitalWrite(PUMP_RLY, LOW);
         },
-        400,
+        600,
         nullptr,
         0
     );
@@ -345,6 +345,7 @@ void Actuators::setupActuators() {
 
 void Actuators::setupActions() {
     static MovementDependency foldSteps[] = {
+        {PUMP_DISABLE, ActuatorStatus::MOVING},
         {BANNER_CATCH, ActuatorStatus::MOVING},
         {PLATFORM_DOWN, ActuatorStatus::SET},
         {ARM_RETRACT, ActuatorStatus::MOVING},
@@ -371,21 +372,13 @@ void Actuators::setupActions() {
         {PLATFORM_TRANS, ActuatorStatus::SET}
     };
     actions[TRANSPORT] = new Action(transportSteps, sizeof(transportSteps) / sizeof(MovementDependency));
-
-    static MovementDependency releaseSteps[] = {
-        {MAGNET_DETACH, ActuatorStatus::MOVING},
-        {SUCTION_APPLY, ActuatorStatus::SET},
-        {PUMP_DISABLE, ActuatorStatus::SET},
-        {SUCTION_RETRACT, ActuatorStatus::MOVING},
-        {GRABBER_RELEASE, ActuatorStatus::SET}
+    
+    static MovementDependency catchSteps[] = {
+        {ARM_RETRACT, ActuatorStatus::MOVING},
+        {GRABBER_CATCH, ActuatorStatus::SET}
     };
-    actions[RELEASE_STAGE] = new Action(releaseSteps, sizeof(releaseSteps) / sizeof(MovementDependency));
-
-    static MovementDependency release3SSteps[] = {
-        {GRABBER_RELEASE, ActuatorStatus::SET}
-    };
-    actions[RELEASE_3S] = new Action(release3SSteps, sizeof(release3SSteps) / sizeof(MovementDependency));
-
+    actions[CATCH] = new Action(catchSteps, sizeof(catchSteps) / sizeof(MovementDependency));
+    
     static MovementDependency extractStageSteps[] = {
         // Secure catch
         {PLATFORM_DOWN, ActuatorStatus::SET},
@@ -402,6 +395,36 @@ void Actuators::setupActions() {
     };
     actions[EXTRACT_STAGE] = new Action(extractStageSteps, sizeof(extractStageSteps) / sizeof(MovementDependency));
 
+    static MovementDependency preReleaseSteps[] = {
+        {ARM_DEPLOY, ActuatorStatus::MOVING},
+        {SUCTION_APPLY, ActuatorStatus::MOVING},
+    };
+    actions[PRERELEASE_STAGE] = new Action(preReleaseSteps, sizeof(preReleaseSteps) / sizeof(MovementDependency));
+
+    static MovementDependency releaseStageSteps[] = {
+        {MAGNET_DETACH, ActuatorStatus::MOVING},
+        {PUMP_DISABLE, ActuatorStatus::MOVING},
+        {SUCTION_APPLY, ActuatorStatus::SET},
+        {SUCTION_RETRACT, ActuatorStatus::MOVING},
+        {GRABBER_RELEASE, ActuatorStatus::SET}
+    };
+    actions[RELEASE_STAGE] = new Action(releaseStageSteps, sizeof(releaseStageSteps) / sizeof(MovementDependency));
+    
+    static MovementDependency releaseUpStageSteps[] = {
+        {MAGNET_DETACH, ActuatorStatus::MOVING},
+        {PUMP_DISABLE, ActuatorStatus::SET},
+        {SUCTION_APPLY, ActuatorStatus::SET},
+        {SUCTION_RETRACT, ActuatorStatus::MOVING},
+        {GRABBER_RELEASE, ActuatorStatus::SET}
+    };
+    actions[RELEASE_UP_STAGE] = new Action(releaseUpStageSteps, sizeof(releaseUpStageSteps) / sizeof(MovementDependency));
+
+    static MovementDependency releaseGrabberSteps[] = {
+        {GRABBER_RELEASE, ActuatorStatus::SET}
+    };
+    actions[RELEASE_GRABBER] = new Action(releaseGrabberSteps, sizeof(releaseGrabberSteps) / sizeof(MovementDependency));
+
+
     static MovementDependency bannerSteps[] = {
         {BANNER_RELEASE, ActuatorStatus::SET},
     };
@@ -416,11 +439,6 @@ void Actuators::setupActions() {
         {PLATFORM_UP, ActuatorStatus::SET},
     };
     actions[S2] = new Action(s2Steps, sizeof(s2Steps) / sizeof(MovementDependency));
-
-    static MovementDependency catchSteps[] = {
-        {GRABBER_CATCH, ActuatorStatus::SET}
-    };
-    actions[CATCH] = new Action(catchSteps, sizeof(catchSteps) / sizeof(MovementDependency));
 }
 
 void Actuators::setServoAngle(byte pin, short angle, ServoType servoType) {
